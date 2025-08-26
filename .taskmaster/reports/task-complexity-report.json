@@ -1,0 +1,93 @@
+{
+	"meta": {
+		"generatedAt": "2025-08-26T13:49:24.805Z",
+		"tasksAnalyzed": 10,
+		"totalTasks": 10,
+		"analysisCount": 10,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": false
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Initialize Python Project & Repository",
+			"complexityScore": 3,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down Task 1 into:\n1. Create repository, project root, and baseline README.\n2. Generate Python packaging (poetry init) and requirements list.\n3. Establish directory structure with __init__.py files for each module and tests.\n4. Configure development tooling (.gitignore, pre-commit with black/isort/flake8, pytest boilerplate).\n5. Add containerization assets (Dockerfile, docker-compose.yml) and verify `docker-compose up` succeeds.",
+			"reasoning": "Greenfield setup with no existing code; straightforward scaffolding using standard tools. Minimal risk, few dependencies, but touches multiple tooling areas → moderate subtasks."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Design & Migrate PostgreSQL Schema",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down Task 2 into:\n1. Define SQLAlchemy Base and engine configuration.\n2. Implement declarative models for forums, posts, sentiment_agg, alerts, anomalies, market tables.\n3. Configure Alembic and generate initial migration.\n4. Optional: add TimescaleDB extension & hypertable migration logic guarded by env flag.\n5. Write seeds/fixtures and unit tests (pytest-postgresql) for CRUD round-trip.\n6. Update docker-compose volumes and env vars for database, run `alembic upgrade head` in container.",
+			"reasoning": "Requires both schema design and migrations; moderate complexity. No legacy code to refactor, but integration with Alembic and TimescaleDB adds steps and testing."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Implement Forum Scraper (Hegnar & Avanza)",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down Task 3 into:\n1. Create abstract Scraper base class with fetch/parse contract.\n2. Implement Hegnar scraper including HTML parsing & ticker extraction.\n3. Implement Avanza scraper with fallback Selenium support.\n4. Build shared utilities (headers randomizer, polite delay, robots check).\n5. Integrate persistence layer with SQLAlchemy bulk upsert.\n6. Add scheduling/CLI entry-point and logging.\n7. Write unit & integration tests with HTML fixtures and live flag.",
+			"reasoning": "Custom HTML parsing, anti-scraping countermeasures, DB writes, scheduling, and dual forums elevate complexity. Still isolated module with clear abstractions."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Build NLP Sentiment Pipeline",
+			"complexityScore": 7,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down Task 4 into:\n1. Implement lightweight language detection heuristic.\n2. Create text preprocessing utilities (clean URLs, emojis, lexicon mapping).\n3. Wrap HF model loading for Norwegian & Swedish with caching.\n4. Develop batch inference logic producing sentiment score.\n5. Build DB interaction to fetch unanalyzed posts and persist scores in transactions.\n6. Expose CLI/scheduler integration and logging/metrics.\n7. Write unit tests (mock model) and integration test inserting sample posts.",
+			"reasoning": "Involves ML models, preprocessing, batching, DB updates, and scheduling. Dependencies on transformers and potential GPU/CPU issues increase technical work."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "Aggregate Sentiment & Detect Buzz Anomalies",
+			"complexityScore": 6,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down Task 5 into:\n1. Query recent posts and sentiment scores via SQLAlchemy.\n2. Perform time-window groupbys using pandas and compute aggregates.\n3. Persist aggregates into sentiment_agg table.\n4. Implement anomaly detection (z-score) and insert into anomalies table.\n5. Schedule hourly job and optimize performance (indexes, upserts).\n6. Create unit tests for aggregation and anomaly logic with synthetic data.",
+			"reasoning": "Requires efficient data aggregation, statistical calculations, persistence, and scheduling. Moderate complexity but self-contained analytics code."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "Implement Alerting Engine",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down Task 6 into:\n1. Design alert rule schema and parse YAML configuration.\n2. Poll anomalies table and evaluate rules.\n3. Implement notification channels (stdout, desktop, webhook) behind interface.\n4. Persist alerts into DB and ensure idempotency.\n5. Add unit tests mocking anomalies and verifying notifications/DB writes.",
+			"reasoning": "Rule evaluation and simple notifications; leverages existing anomalies table. Limited external complexity, modest coding effort."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Fetch Market Data & News Integrations",
+			"complexityScore": 5,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down Task 7 into:\n1. Integrate OpenBB SDK for price retrieval with retries and rate limiting.\n2. Implement RSS feed ingestion and ticker mapping.\n3. Design SQLAlchemy models for market_prices and news tables with migrations.\n4. Schedule periodic fetch jobs and ensure deduplication.\n5. Write integration tests using VCR.py and sample feeds.",
+			"reasoning": "Standard API and RSS ingestion plus persistence. Some external dependencies and rate-limit handling; moderate but manageable."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "Develop Streamlit Dashboard",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down Task 8 into:\n1. Set up Streamlit app skeleton and configuration.\n2. Implement data layer functions (cached SQL queries for sentiments, prices, news).\n3. Build heatmap of buzzing stocks with Plotly.\n4. Build combined sentiment vs price line chart with news overlay.\n5. Add sidebar filters and state management.\n6. Write Cypress end-to-end tests and container exposure.",
+			"reasoning": "UI development with Streamlit and Plotly; uses existing data APIs. Visual complexity but low algorithmic difficulty; standard web-app subtasks."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Containerize Cron & Worker Services",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down Task 9 into:\n1. Define individual service Dockerfiles or shared base image.\n2. Extend docker-compose with scraper, nlp, aggregator, alert, market, dashboard services and networks.\n3. Add healthchecks and environment configuration (.env) for each service.\n4. Implement entrypoint scripts and cron/schedule triggers inside containers.\n5. Verify orchestration locally and document usage.",
+			"reasoning": "Mostly DevOps configuration; leveraging Docker Compose. Some coordination but low code complexity."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Automated Testing & CI Pipeline",
+			"complexityScore": 3,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down Task 10 into:\n1. Configure GitHub Actions workflow with Python matrix and caching.\n2. Add linting steps (black, isort, flake8) and failing checks.\n3. Run pytest with service dependencies (postgres via services container or tox).\n4. Build and push Docker images to GHCR on main branch.",
+			"reasoning": "Standard GitHub Actions setup; templates widely available. Some orchestration with services but overall straightforward."
+		}
+	]
+}

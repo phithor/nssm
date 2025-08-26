@@ -1,0 +1,188 @@
+Nordic Stock Sentiment Monitor (NSSM)
+Draft Version
+Owner: [Your Name]
+
+Overview
+NSSM is a personal research assistant that gives you real-time monitoring of Nordic investor forums and correlates them with market data and official news.
+
+Problem: Scandinavian retail forums like Hegnar Online and Avanza Forum generate alpha-moving chatter, but following them manually is inefficient and nearly impossible at scale.
+
+Solution: Automate collection → sentiment analysis → alerting so that you can spot unusual “buzz” and emerging momentum in specific stocks before markets or media react.
+
+Scope:
+
+Initially a personal-use tool running locally or in a private cloud (not yet SaaS).
+
+Later optionally productized and sold to other traders/researchers.
+
+Core Features
+1. Forum Scraping & Data Collection
+What it does: Monitors selected forums (Hegnar, Avanza) continuously, scrapes posts, stores raw data.
+
+Why important (your use): You get the full firehose of chatter, with a private archive.
+
+How it works: Heuristic scrapers with cron scheduling; parsed & ingested into a local database.
+
+2. Sentiment & Momentum Analyzer
+What it does: Classifies forum chatter sentiment and detects unusual growth in post counts.
+
+Why important: Captures early market hype; lets you prioritize which tickers to investigate.
+
+How it works: ML models fine-tuned on Scandinavian text → aggregated sentiment per stock per time interval → anomaly detection (rolling averages & volatility thresholds).
+
+3. Alerts (Optional for you)
+What it does: Flag and notify when a stock starts buzzing or sentiment flips.
+
+Why important: Minimize the need to stare at the dashboard, highlighting actionable moments.
+
+How it works: Local notifications/terminal logs/desktop push. Could also trigger webhook to phone.
+
+4. Market Data & News Integration
+What it does: Adds “real” context from OpenBB SDK, Yahoo Finance, or RSS feeds (Oslo Børs, OMX).
+
+Why important: Lets you distinguish between retail-driven chatter vs real company news.
+
+How it works: Simple background pull of market data into same DB, aligned by ticker+timestamp.
+
+5. Personal Dashboard
+What it does: Provides you with dynamic plots and lists.
+
+Why important: You don’t need to sift raw logs — just see which stocks are moving.
+
+How it works: Local web dashboard with heatmaps (buzz level), sentiment charts, timelines.
+
+User Experience
+Since this is for you first, UX can be lightweight but still intuitive.
+
+User Persona (Primary)
+You: Quant/retail trader monitoring Nordic equities; wants an “extra set of eyes.”
+
+User Flow
+Start backend → Scraper ingests forum chatter automatically.
+
+Open dashboard → See “Top Buzzing Nordic Stocks.”
+
+Drill into ticker → View sentiment curve + matching stock moves + official news.
+
+(Optional) Setup alert config file → receive ping when criteria met.
+
+UX Considerations
+Minimal polish needed initially — HTML dashboards / Streamlit / Dash can suffice.
+
+Focus more on data visibility and fast signal, not enterprise-grade UI yet.
+
+Technical Architecture
+System Components
+Scrapers: Custom-built (probably Python requests+bs4, Selenium if needed).
+
+Processor: NLP pipeline (HuggingFace Scandinavian models), mention extraction, time-series aggregator.
+
+Data Storage: PostgreSQL for structured; simple disk/S3-like folder for raw logs.
+
+Analysis: Python stack (pandas, scikit-learn, Prophet/ARIMA for momentum detection).
+
+UI: Lightweight Streamlit or Dash app → interactive data + plots.
+
+Data Models
+Posts: {forum, stock ticker(s), timestamp, sentiment score, raw text}.
+
+Stocks: {ticker, exchange, sector, linked posts, time-series sentiment values}.
+
+Alerts: {condition, triggered_time}.
+
+Integrations
+Finance data: OpenBB SDK plug-in modules.
+
+News feeds: RSS/Oslo Børs/Nasdaq OMX scrapers.
+
+Optional future: Telegram/Discord/Slack push bots.
+
+Infrastructure
+Local machine, home NAS, or cheap cloud VM (Hetzner, DO, AWS Lightsail).
+
+Docker for portability.
+
+Cron jobs + supervisor for scrapers.
+
+Development Roadmap
+MVP (Usable for Personal Use)
+Scraper: Hegnar + Avanza basic ingestion.
+
+NLP pipeline: classify posts as pos/neg.
+
+DB: PostgreSQL with post storage + ticker mapping.
+
+Dashboard: Top Buzzing Stocks + timeline of sentiment.
+
+Next Iteration
+Add anomaly detection (buzz spikes).
+
+Basic alerting (local notification/logs).
+
+Overlay OpenBB market data.
+
+Later Enhancements
+Add additional forums + Twitter/X hashtags.
+
+Fancier NLP (neutral class, sarcasm handling).
+
+More sophisticated anomaly detection (rolling z-score).
+
+Personal forecasting/exploration module (backtest chatter vs price).
+
+Logical Dependency Chain
+Build data collection layer (without this, nothing else works).
+
+Add basic database + ticker classification.
+
+Implement simple dashboard (get a usable artifact early).
+
+Plug in basic NLP sentiment scoring.
+
+Build anomaly detection and alerting hooks.
+
+Expand scope: news/market data + advanced NLP.
+
+Risks and Mitigations
+Forum Blocking: Aggressive scraping might get blocked.
+
+Mitigation: Rotate IPs/user-agents; schedule polite scraping; randomize request times.
+
+NLP Noise: High misclassification due to colloquial slang/sarcasm.
+
+Mitigation: Build custom keyword lexicon for finance slang (e.g., "rakett", "dobler", “emisjon”).
+
+Time Investment: Can get bogged down in infrastructure.
+
+Mitigation: For personal MVP, keep stack simple (Streamlit over fancy microservices). Only optimize later.
+
+Data Overload: Even small forums output tons of posts daily.
+
+Mitigation: Focus only on ticker mentions, avoid deep storage of irrelevant posts (off-topic chatter).
+
+Appendix
+Research Findings
+Hegnar Forum: High activity on small-cap Norwegian equities; often “pump and hype.”
+
+Avanza Forum: Large Swedish community; more structured but hype cycles emerge too.
+
+Stock Influencers: Twitter/X still relevant, but forums are narrower, less “noise.”
+
+Edge: Retail sentiment can precede news releases by hours/days in illiquid Nordic stocks.
+
+Technical Notes
+HuggingFace models: NbBERT, SweBERT.
+
+Visual libraries: Plotly/Dash, Streamlit for quick prototyping.
+
+Storage: PostgreSQL + TimescaleDB extension for time-series queries.
+
+✅ **This updated PRD assumes it’s for your private use first:
+
+Easier infrastructure (no SaaS constraints).
+
+No GDPR/user privacy overhead.
+
+Scraping is designed-in, regardless of “asks not to scrape.”
+
+Still modular enough to later add multi-user, SaaS-style scaling if you choose to commercialize.
