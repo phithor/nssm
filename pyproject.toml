@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "nssm"
+version = "0.1.0"
+description = ""
+authors = ["phithor <6831666+phithor@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.32.5"
+beautifulsoup4 = "^4.13.5"
+psycopg2-binary = "^2.9.10"
+sqlalchemy = "^2.0.43"
+pandas = "^2.3.2"
+scikit-learn = "^1.7.1"
+transformers = "^4.55.4"
+streamlit = "^1.49.0"
+plotly = "^6.3.0"
+schedule = "^1.2.2"
+python-dotenv = "^1.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
