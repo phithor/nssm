@@ -1,0 +1,60 @@
+# Task ID: 4
+# Title: Build NLP Sentiment Pipeline
+# Status: pending
+# Dependencies: 3
+# Priority: high
+# Description: Create service that cleans Norwegian/Swedish text, runs HF model, stores score.
+# Details:
+• nlp/pipeline.py: load ‘NbAiLab/nb-bert-base’ & ‘KBLab/swe-bert’ via transformers.
+• Language detect simple heuristic by forum locale.
+• Preprocess: lower, strip URLs, emoji removal, finance slang lexicon mapping.
+• For each new post without sentiment_score, batch encode → model → softmax[positive].
+• Persist score back to posts table.
+• CLI ‘python -m nlp run’ scheduled every 2 min.
+
+# Test Strategy:
+Unit test preprocessing utils. Mock model returning fixed logits and assert DB update. End-to-end: insert 10 raw posts → run pipeline → sentiment_score not NULL.
+
+# Subtasks:
+## 1. Implement Lightweight Language Detection Heuristic [pending]
+### Dependencies: None
+### Description: Create a simple, fast heuristic to determine whether a post is Norwegian or Swedish based on forum locale or character patterns.
+### Details:
+Add nlp/lang_detect.py with a function detect_lang(text, locale_hint) → 'no' | 'sv'. Use locale metadata first, fall back to character bigram frequency thresholds. Unit-test with mixed examples.
+
+## 2. Create Text Pre-processing Utilities [pending]
+### Dependencies: None
+### Description: Develop utilities to clean URLs, remove emojis, lowercase text, and map finance slang to canonical forms.
+### Details:
+Add nlp/preprocess.py with clean_text(text) pipeline. Include regex URL stripping, emoji regex, slang dict load from JSON. Provide standalone CLI for quick testing and unit tests for each transform.
+
+## 3. Wrap HF Model Loading with Caching [pending]
+### Dependencies: None
+### Description: Implement model loader that lazily downloads and caches Norwegian and Swedish BERT sentiment heads.
+### Details:
+Add nlp/model.py with get_model(lang) that returns (tokenizer, model) from 'NbAiLab/nb-bert-base' or 'KBLab/swe-bert'. Use transformers.AutoModelForSequenceClassification & AutoTokenizer with torch_dtype inference and local_dir cache.
+
+## 4. Develop Batch Inference Logic [pending]
+### Dependencies: 4.1, 4.2, 4.3
+### Description: Create batched sentiment inference that encodes posts, runs model forward pass, and extracts softmax positive probability.
+### Details:
+Add nlp/infer.py with run_inference(posts, lang). Use torch.no_grad(), DataLoader with batch_size configurable, device auto-select. Return list[{'post_id': id, 'score': float}]. Capture runtime metrics.
+
+## 5. Build Database Interaction Layer [pending]
+### Dependencies: 4.4
+### Description: Implement queries to fetch posts lacking sentiment_score and persist computed scores in atomic transactions.
+### Details:
+Add nlp/db_io.py using SQLAlchemy session. Function fetch_unscored(limit) and save_scores(score_rows). Include retry logic & index hint comment for performance.
+
+## 6. Expose CLI & Scheduler Integration with Logging [pending]
+### Dependencies: 4.4, 4.5
+### Description: Wire pipeline into a CLI entry-point and schedule it every two minutes with proper logging and Prometheus metrics.
+### Details:
+Create nlp/__main__.py to invoke run_pipeline(). Register console_script in pyproject.toml. Use schedule.every(2).minutes.do(run_pipeline). Hook python-json-logger and prometheus_client counters.
+
+## 7. Write Unit & Integration Tests [pending]
+### Dependencies: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6
+### Description: Create tests covering preprocessing, language detection, model wrapper (mocked), DB I/O, and end-to-end pipeline execution.
+### Details:
+Add tests/ with pytest fixtures: mock_model returning fixed logits, temporary SQLite DB seeded with 10 sample posts. Assert sentiment_score populated and CLI exit code 0. Include GitHub Actions job reference for Task 10.
+

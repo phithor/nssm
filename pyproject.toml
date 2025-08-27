@@ -20,6 +20,9 @@ schedule = "^1.2.2"
 python-dotenv = "^1.1.1"
 
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

@@ -17,7 +17,7 @@
             "description": "Create project root, initialize git repository, and add a baseline README describing NSSM architecture.",
             "dependencies": [],
             "details": "- Create project directory `NSSM` and navigate into it.\n- Run `git init` to initialize repository.\n- Add initial `README.md` including project overview, module descriptions, and contribution guidelines.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -28,7 +28,7 @@
               "1.1"
             ],
             "details": "- Run `poetry init --name NSSM --python ^3.11`.\n- Add dependencies: requests, beautifulsoup4, psycopg2-binary, sqlalchemy, pandas, scikit-learn, transformers, streamlit, plotly, schedule, python-dotenv.\n- Configure Poetry virtual environment and ensure `poetry.lock` is committed.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -40,7 +40,7 @@
               "1.2"
             ],
             "details": "- Execute `mkdir -p NSSM/{scraper,db,nlp,dashboard,config,tests}`.\n- Add `__init__.py` to each package directory.\n- Include placeholder test file `tests/test_placeholder.py`.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": ""
           },
           {
@@ -793,7 +793,7 @@
     ],
     "metadata": {
       "created": "2025-08-26T13:47:28.377Z",
-      "updated": "2025-08-26T13:58:11.093Z",
+      "updated": "2025-08-27T11:37:27.897Z",
       "description": "Tasks for master context"
     }
   }

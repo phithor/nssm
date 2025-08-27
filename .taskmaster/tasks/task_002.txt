@@ -1,0 +1,52 @@
+# Task ID: 2
+# Title: Design & Migrate PostgreSQL Schema
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Define relational schema for posts, tickers, sentiment, alerts and create migration script.
+# Details:
+• Use SQLAlchemy declarative models in db/models.py
+• Tables: forums(id, name,url), posts(id, forum_id, ticker, timestamp, author, raw_text, clean_text, sentiment_score FLOAT), sentiment_agg(id,ticker,interval_start,interval_end,avg_score,post_cnt,created_at), alerts(id,ticker,rule,triggered_at)
+• Alembic revision to create tables.
+• Use TimescaleDB extension for sentiment_agg hypertable (optional enable if docker-compose env TS).
+
+# Test Strategy:
+Run ‘alembic upgrade head’ in container. Connect via psql → \dt lists all tables. Insert mock row → SELECT verifies constraints. pytest with in-memory postgres (pytest-postgresql) validating model round-trip.
+
+# Subtasks:
+## 1. Set up SQLAlchemy Base and Engine [pending]
+### Dependencies: None
+### Description: Create the foundational database module with Base class and engine configuration.
+### Details:
+Add db/__init__.py; define Base = declarative_base(); read DATABASE_URL from env; expose get_engine() and get_session() helpers; include basic logging.
+
+## 2. Implement Declarative Models [pending]
+### Dependencies: 2.1
+### Description: Define ORM classes for forums, posts, sentiment_agg, alerts, anomalies, and market tables.
+### Details:
+Create db/models.py; add columns, primary/foreign keys, indexes, relationships, __repr__; enforce NOT NULL & unique constraints where appropriate.
+
+## 3. Configure Alembic and Generate Initial Migration [pending]
+### Dependencies: 2.1, 2.2
+### Description: Initialize Alembic, link metadata, and create first revision to build core tables.
+### Details:
+Run `alembic init migrations`; update env.py with target_metadata = Base.metadata; generate revision 'create_core_tables'; test `alembic upgrade head` against local Postgres.
+
+## 4. Add TimescaleDB Extension & Hypertable Logic [pending]
+### Dependencies: 2.3
+### Description: Extend migration script to optionally enable TimescaleDB and convert sentiment_agg to hypertable.
+### Details:
+Within upgrade(): check os.getenv('TS'); execute `CREATE EXTENSION IF NOT EXISTS timescaledb`; run `SELECT create_hypertable('sentiment_agg', 'interval_start', if_not_exists=>TRUE)`; include corresponding downgrade steps.
+
+## 5. Write Seeds, Fixtures, and Unit Tests [pending]
+### Dependencies: 2.2, 2.3
+### Description: Create seed scripts and pytest fixtures to validate CRUD operations with the new schema.
+### Details:
+Add db/seed.py populating mock forums and posts; configure pytest-postgresql fixture applying migrations; assert insert/select/update/delete for each model; include tox entry.
+
+## 6. Update Docker Compose and Automate Migration [pending]
+### Dependencies: 2.3, 2.4
+### Description: Modify docker-compose to include env vars, volumes, and run Alembic upgrade during container start.
+### Details:
+Add TIMESCALEDB flag, mount ./migrations; in app service CMD run `alembic upgrade head`; verify by `docker-compose up` then `psql -c '\dt'`; document process in README.
+

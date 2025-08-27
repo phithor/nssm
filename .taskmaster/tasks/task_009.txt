@@ -1,0 +1,60 @@
+# Task ID: 9
+# Title: Containerize Cron & Worker Services
+# Status: pending
+# Dependencies: 3, 4, 5, 6, 7, 8
+# Priority: low
+# Description: Docker-compose orchestration of scraper, nlp, aggregator, alert, dashboard services.
+# Details:
+• Extend docker-compose.yml: services: db, scraper, nlp, aggregator, alert, market, dashboard.
+• Use healthchecks. Networks internal.
+• environment variables via .env file.
+
+# Test Strategy:
+`docker-compose up -d` then `docker-compose ps` shows all healthy. Logs show scheduled jobs executing. curl localhost:8501 returns HTTP 200.
+
+# Subtasks:
+## 1. Create Service Dockerfiles / Base Image [pending]
+### Dependencies: None
+### Description: Author individual Dockerfiles or a shared base image for scraper, nlp, aggregator, alert, market, dashboard services.
+### Details:
+• Decide between shared Python base image vs per-service Dockerfile.
+• Install OS libs (curl, git, cron) and Python 3.11 + poetry/requirements.
+• Copy service code, install dependencies, set non-root user.
+• Output images tagged nssm/<service>:latest for use in compose.
+
+## 2. Extend docker-compose.yml with Services & Networks [pending]
+### Dependencies: 9.1
+### Description: Add all worker services plus db to docker-compose and define internal networks.
+### Details:
+• Define services: db, scraper, nlp, aggregator, alert, market, dashboard.
+• Reference images built in 9.1 or build context paths.
+• Create internal network "nssm_net"; attach all containers.
+• Mount volumes for persistent db data and logs.
+
+## 3. Configure Healthchecks & Environment Variables [pending]
+### Dependencies: 9.2
+### Description: Introduce per-service healthcheck commands and centralised .env configuration.
+### Details:
+• Add healthcheck sections (curl /health, pg_isready, etc.) with suitable intervals/timeouts.
+• Create .env file holding DB creds, API keys, scheduler intervals.
+• Map environment: key=value or env_file in compose.
+• Fail containers on unhealthy status for easier orchestration.
+
+## 4. Implement Entrypoint Scripts & Cron Scheduling [pending]
+### Dependencies: 9.2, 9.3
+### Description: Embed cron or schedule triggers inside containers to run workers at desired intervals.
+### Details:
+• Write entrypoint.sh per service: migrate DB, start cron or python scheduler.
+• Use crontab files or schedule lib; e.g., scraper every minute, aggregator hourly.
+• Ensure logs stream to stdout for docker-compose logging.
+• Update Dockerfiles (9.1) to COPY entrypoint & set CMD.
+
+## 5. Local Orchestration Verification & Documentation [pending]
+### Dependencies: 9.3, 9.4
+### Description: Test full stack with docker-compose and write README usage instructions.
+### Details:
+• Run `docker-compose up -d`; verify `docker-compose ps` shows healthy.
+• Tail logs to confirm cron jobs trigger and DB writes occur.
+• Hit dashboard on localhost:8501, expect HTTP 200.
+• Document setup, env vars, common commands, troubleshooting.
+

@@ -1,0 +1,69 @@
+# Task ID: 8
+# Title: Develop Streamlit Dashboard
+# Status: pending
+# Dependencies: 5, 7
+# Priority: medium
+# Description: Interactive dashboard showing Top Buzzing Stocks, sentiment charts, news overlay.
+# Details:
+• dashboard/app.py using streamlit.
+• Sidebar date range & ticker filter.
+• Main: Plotly heatmap of post_cnt_zscore, line chart sentiment vs price.
+• Use SQLAlchemy queries, cache via st.cache_data.
+• Dockerfile exposes port 8501.
+
+# Test Strategy:
+Run `streamlit run app.py` inside container; Cypress e2e tests open dashboard, assert heatmap renders and API queries <1s.
+
+# Subtasks:
+## 1. Set up Streamlit app skeleton and configuration [pending]
+### Dependencies: None
+### Description: Create the initial Streamlit application structure with Docker support and basic run script.
+### Details:
+• Create dashboard/app.py with placeholder layout (sidebar + main).
+• Configure Streamlit in .streamlit/config.toml (theme, page title, wide layout).
+• Update Dockerfile to install streamlit and expose port 8501; add CMD "streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0".
+• Verify local run: `streamlit run dashboard/app.py` renders empty page.
+
+## 2. Implement cached data layer functions [pending]
+### Dependencies: 8.1
+### Description: Write SQLAlchemy-based functions (wrapped in st.cache_data) to fetch sentiments, prices, and news in required formats.
+### Details:
+• Connect via SQLAlchemy engine from config.
+• Functions: get_buzzing_heatmap_data(start,end), get_sentiment_price_series(ticker,start,end), get_news_overlay(ticker,start,end).
+• Apply @st.cache_data(ttl=300).
+• Return pandas DataFrames ready for Plotly.
+
+## 3. Build Plotly heatmap for Top Buzzing Stocks [pending]
+### Dependencies: 8.1, 8.2
+### Description: Render heatmap of post_cnt_zscore by ticker over selected period using Plotly in main page.
+### Details:
+• Use get_buzzing_heatmap_data() output.
+• Create Plotly heatmap figure with color-scale diverging centered at 0.
+• Add hover showing post count, z-score.
+• Integrate figure into Streamlit container.
+
+## 4. Build sentiment vs price line chart with news overlay [pending]
+### Dependencies: 8.1, 8.2
+### Description: Combine dual-axis line chart of sentiment average and price, overlaying news event markers.
+### Details:
+• get_sentiment_price_series() returns sentiment and price columns.
+• Plotly secondary y-axis: left = sentiment, right = price.
+• get_news_overlay() provides vertical lines + tooltip headlines.
+• Add range slider & adaptive x-axis ticks.
+
+## 5. Add sidebar filters and state management [pending]
+### Dependencies: 8.1, 8.2, 8.3, 8.4
+### Description: Implement date range picker, ticker multiselect, and internal session state to synchronize charts.
+### Details:
+• st.sidebar.date_input for start/end, st.sidebar.multiselect for tickers.
+• Use st.session_state to propagate selections.
+• Trigger data reload functions with selected parameters; ensure minimal reruns.
+
+## 6. Write Cypress end-to-end tests and verify container exposure [pending]
+### Dependencies: 8.1, 8.2, 8.3, 8.4, 8.5
+### Description: Automate E2E testing of dashboard rendering and performance, and confirm Docker port mapping.
+### Details:
+• Add cypress/ directory with tests: visit '/', assert heatmap and line chart load within 1 s.
+• Use cy.request to validate backend API latency.
+• docker-compose override maps 8501:8501; GitHub Action runs `docker-compose up -d dashboard && npx cypress run`.
+

@@ -1,0 +1,54 @@
+# Task ID: 10
+# Title: Automated Testing & CI Pipeline
+# Status: pending
+# Dependencies: 1, 2, 3, 4, 5, 6, 7, 8, 9
+# Priority: low
+# Description: Configure GitHub Actions pipeline for linting, tests, build images.
+# Details:
+• .github/workflows/ci.yml: matrix python 3.10/3.11.
+• Steps: checkout, setup-python, cache pip, install, run flake8 & black --check, pytest, build docker-compose build.
+• Push images to GHCR for main branch.
+
+# Test Strategy:
+Push PR with failing lint → action fails. Fix → action passes and images appear in registry.
+
+# Subtasks:
+## 1. Create Base GitHub Actions Workflow [pending]
+### Dependencies: None
+### Description: Set up a ci.yml workflow with Python version matrix and pip caching.
+### Details:
+• Path: .github/workflows/ci.yml
+• Trigger: pull_request + push
+• Strategy.matrix: python-version [3.10, 3.11]
+• Steps: actions/checkout, actions/setup-python (uses matrix), actions/cache (key: v1-${{ runner.os }}-${{ matrix.python-version }}-pip), pip install -r requirements.txt
+• Verify workflow syntax via act locally.
+
+## 2. Integrate Linting Checks [pending]
+### Dependencies: 10.1
+### Description: Add black, isort, and flake8 steps that fail on style violations.
+### Details:
+• Extend ci.yml with pip install 'black==23.*' 'isort==5.*' 'flake8==6.*'
+• Run commands: black --check . ; isort --check-only . ; flake8 .
+• Annotate failures using github-sane-report or default annotations.
+• Ensure non-zero exit stops job.
+• Update README with badge for build status.
+
+## 3. Run Pytest with Postgres Service [pending]
+### Dependencies: 10.2
+### Description: Configure workflow to spin up Postgres container and execute pytest suite.
+### Details:
+• Add services.postgres in ci.yml (image: postgres:15, env: POSTGRES_PASSWORD, ports)
+• Wait for DB readiness using health-check or bash retry loop.
+• Install test deps via pip install -r requirements-test.txt
+• Command: pytest -q --maxfail=1 --disable-warnings
+• Artifacts: upload coverage.xml and junit.xml.
+
+## 4. Build & Push Docker Images to GHCR [pending]
+### Dependencies: 10.3
+### Description: On main branch, build multi-arch Docker image and push to GitHub Container Registry.
+### Details:
+• Add job conditioned on if: github.ref == 'refs/heads/main'
+• Steps: docker/setup-buildx-action, docker/login-action (registry: ghcr.io, using GITHUB_TOKEN), docker/metadata-action for tags (sha, latest), docker/build-push-action with push: true
+• Optionally cache layers.
+• Verify image appears under ghcr.io/org/repo.
+
