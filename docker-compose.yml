@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=nssm_db
+      - POSTGRES_USER=nssm_user
+      - POSTGRES_PASSWORD=nssm_password
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    networks:
+      - nssm-network
+
+  db:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      - POSTGRES_DB=nssm_db
+      - POSTGRES_USER=nssm_user
+      - POSTGRES_PASSWORD=nssm_password
+      - TS_ENABLE=true
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - nssm-network
+
+volumes:
+  postgres_data:
+
+networks:
+  nssm-network:
+    driver: bridge
