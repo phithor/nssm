@@ -40,7 +40,7 @@
               "1.2"
             ],
             "details": "- Execute `mkdir -p NSSM/{scraper,db,nlp,dashboard,config,tests}`.\n- Add `__init__.py` to each package directory.\n- Include placeholder test file `tests/test_placeholder.py`.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -53,7 +53,7 @@
               "1.3"
             ],
             "details": "- Create `.gitignore` covering venv, `__pycache__`, `.env`, and build artifacts.\n- Write `.flake8`, `pyproject.toml` or separate config for black & isort.\n- Install and configure `pre-commit`; add hooks for black, isort, flake8.\n- Add minimal `pytest.ini` and verify `pytest -q` returns 0.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": ""
           },
           {
@@ -793,7 +793,7 @@
     ],
     "metadata": {
       "created": "2025-08-26T13:47:28.377Z",
-      "updated": "2025-08-27T11:37:27.897Z",
+      "updated": "2025-08-27T12:27:04.075Z",
       "description": "Tasks for master context"
     }
   }
