@@ -14,14 +14,10 @@ from .models import Alert, Forum, Post, SentimentAgg
 def seed_forums():
     """Seed sample forums"""
     forums_data = [
-        {
-            "name": "Reddit r/wallstreetbets",
-            "url": "https://reddit.com/r/wallstreetbets",
-        },
-        {"name": "Reddit r/stocks", "url": "https://reddit.com/r/stocks"},
-        {"name": "StockTwits", "url": "https://stocktwits.com"},
         {"name": "Seeking Alpha", "url": "https://seekingalpha.com"},
         {"name": "Yahoo Finance", "url": "https://finance.yahoo.com"},
+        {"name": "Hegnar Online", "url": "https://www.finansavisen.no/forum/"},
+        {"name": "Avanza Forum", "url": "https://forum.placera.se/upptack"},
     ]
 
     db = SessionLocal()

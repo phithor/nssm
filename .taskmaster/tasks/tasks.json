@@ -162,7 +162,7 @@
         "dependencies": [
           2
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -170,7 +170,7 @@
             "description": "Create the abstract Scraper class with mandatory fetch() and parse() methods and shared helpers/attributes.",
             "dependencies": [],
             "details": "File: scraper/base.py; use abc.ABCMeta; include user_agent, session, and __init__ with base_url; add basic error handling and logging stubs.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -181,7 +181,7 @@
               "3.1"
             ],
             "details": "Files: scraper/utils/headers.py, delay.py, robots.py, selenium_wrapper.py; expose callable functions/classes reusable by all forum scrapers.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -193,7 +193,7 @@
               "3.2"
             ],
             "details": "Use requests+BeautifulSoup; pagination support; regex r\"\\b[A-Z]{2,4}\\b\" for ticker; yield Post objects; handle anti-bot blocks with retry/backoff.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -205,7 +205,7 @@
               "3.2"
             ],
             "details": "Detect JS-rendered content via heuristic; manage headless Chrome driver; reuse shared utilities; extract same fields as Hegnar scraper.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -219,7 +219,7 @@
               "3.4"
             ],
             "details": "Add db/session.py factory; implement upsert_posts(posts, session); ensure forum and ticker FK resolution; commit in batches.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -233,7 +233,7 @@
               "3.5"
             ],
             "details": "Use schedule library; configure logging via logging.config.dictConfig; graceful shutdown on SIGINT; argparse flags for interval, verbose.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -247,7 +247,7 @@
               "3.6"
             ],
             "details": "Mock network calls with responses; assert ticker extraction accuracy; integration test checks >0 new DB rows after run; CI workflow step.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -793,7 +793,7 @@
     ],
     "metadata": {
       "created": "2025-08-26T13:47:28.377Z",
-      "updated": "2025-08-27T12:48:32.377Z",
+      "updated": "2025-08-27T13:08:51.772Z",
       "description": "Tasks for master context"
     }
   }

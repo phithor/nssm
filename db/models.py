@@ -43,12 +43,19 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     forum_id = Column(Integer, ForeignKey("forums.id"), nullable=False, index=True)
-    ticker = Column(String(20), nullable=False, index=True)
+    post_id = Column(
+        String(255), nullable=False, unique=True, index=True
+    )  # External post ID
+    ticker = Column(
+        String(20), nullable=True, index=True
+    )  # Made nullable since not all posts have tickers
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
     author = Column(String(255), nullable=False)
     raw_text = Column(Text, nullable=False)
     clean_text = Column(Text, nullable=False)
+    url = Column(String(500), nullable=True)  # URL to the original post
     sentiment_score = Column(Float, nullable=True, index=True)
+    metadata = Column(Text, nullable=True)  # JSON metadata from scraper
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
