@@ -15,6 +15,7 @@ NSSM/
 ├── scraper/          # Forum scraping & data collection
 ├── db/              # Database models & migrations
 ├── nlp/             # Sentiment analysis & NLP pipeline
+├── analytics/       # Sentiment aggregation & anomaly detection
 ├── dashboard/       # Streamlit web interface
 ├── config/          # Configuration management
 └── tests/           # Test suite
@@ -27,10 +28,10 @@ NSSM/
    - Heuristic-based parsing with cron scheduling
    - Raw data ingestion into local database
 
-2. **Sentiment & Momentum Analyzer** (`nlp/`)
-   - ML models fine-tuned on Scandinavian text
-   - Aggregated sentiment per stock per time interval
-   - Anomaly detection using rolling averages & volatility thresholds
+2. **Sentiment & Momentum Analyzer** (`nlp/` + `analytics/`)
+   - ML models fine-tuned on Scandinavian text (`nlp/`)
+   - Aggregated sentiment per stock per time interval (`analytics/`)
+   - Anomaly detection using rolling averages & volatility thresholds (`analytics/`)
 
 3. **Data Storage** (`db/`)
    - PostgreSQL with TimescaleDB extension for time-series queries
@@ -101,6 +102,68 @@ Forum Scrapers → Raw Data Storage → NLP Pipeline → Sentiment Analysis → 
      Forums           Logs         ML Models      Sentiment      Queries      Visualization
 ```
 
+## 📊 Analytics Module
+
+The analytics module provides sentiment aggregation and anomaly detection capabilities:
+
+### Features
+
+- **Sentiment Aggregation**: Computes rolling sentiment averages per stock in 5-minute windows
+- **Anomaly Detection**: Identifies unusual spikes in discussion volume using z-score analysis
+- **Scheduled Processing**: Hourly analytics pipeline with configurable parameters
+- **Database Integration**: Stores aggregates and anomalies in PostgreSQL with TimescaleDB optimization
+
+### Usage
+
+#### Run Aggregation Pipeline
+```bash
+# Aggregate sentiment from last 24 hours
+python -m analytics aggregate --hours-back 24
+
+# Custom window size and confidence threshold
+python -m analytics aggregate --window-minutes 10 --min-confidence 0.7
+```
+
+#### Run Anomaly Detection
+```bash
+# Detect anomalies with default settings
+python -m analytics anomalies
+
+# Custom z-score threshold
+python -m analytics anomalies --zscore-threshold 2.5 --min-post-count 10
+```
+
+#### Run Combined Pipeline
+```bash
+# Run both aggregation and anomaly detection
+python -m analytics pipeline --hours-back 48
+```
+
+#### View Analytics Status
+```bash
+# Show recent statistics and sentiment distribution
+python -m analytics status --days-back 7
+```
+
+#### Scheduled Service
+```bash
+# Run analytics hourly (designed for cron/systemd)
+./scripts/run_analytics_scheduler.sh
+```
+
+### Database Tables
+
+- **`sentiment_agg`**: Time-series sentiment aggregates per stock
+- **`anomalies`**: Detected sentiment pattern anomalies
+
+### Configuration
+
+Analytics parameters can be configured via command-line flags:
+- `--hours-back`: Historical data window (default: 24)
+- `--window-minutes`: Aggregation window size (default: 5)
+- `--zscore-threshold`: Anomaly detection sensitivity (default: 2.0)
+- `--min-confidence`: Minimum sentiment confidence (default: 0.5)
+
 ## 🔧 Configuration
 
 The system uses environment variables for configuration:
@@ -145,6 +208,8 @@ The project includes pre-commit hooks for:
 
 ### MVP (Current Focus)
 - [x] Project initialization and structure
+- [x] Complete NLP Sentiment Pipeline (Task 4)
+- [x] Sentiment Aggregation & Anomaly Detection (Task 5)
 - [ ] Basic forum scraping (Hegnar + Avanza)
 - [ ] Simple sentiment classification
 - [ ] PostgreSQL database setup

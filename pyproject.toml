@@ -6,7 +6,7 @@ authors = ["phithor <6831666+phithor@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.11,<3.13"
 requests = "^2.32.5"
 beautifulsoup4 = "^4.13.5"
 psycopg2-binary = "^2.9.10"
@@ -15,10 +15,15 @@ alembic = "^1.13.1"
 pandas = "^2.3.2"
 scikit-learn = "^1.7.1"
 transformers = "^4.55.4"
+torch = "^2.0.0"
 streamlit = "^1.49.0"
 plotly = "^6.3.0"
 schedule = "^1.2.2"
 python-dotenv = "^1.1.1"
+feedparser = "^6.0.10"
+pytz = "^2024.1"
+openbb = "^4.3.5"
+tenacity = "^8.2.3"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -27,6 +32,8 @@ black = "^25.1.0"
 isort = "^6.0.1"
 flake8 = "^7.3.0"
 pre-commit = "^4.3.0"
+vcrpy = "^6.0.1"
+cypress = "^13.6.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,24 +1,7 @@
 version: '3.8'
 
 services:
-  app:
-    build: .
-    ports:
-      - "8501:8501"
-    environment:
-      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=nssm_db
-      - POSTGRES_USER=nssm_user
-      - POSTGRES_PASSWORD=nssm_password
-    depends_on:
-      - db
-    volumes:
-      - .:/app
-    networks:
-      - nssm-network
-
+  # Database service
   db:
     image: timescale/timescaledb:latest-pg15
     environment:
@@ -32,11 +15,148 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./db/migrations:/docker-entrypoint-initdb.d
     networks:
-      - nssm-network
+      - nssm-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nssm_user -d nssm_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Dashboard service (external access)
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=nssm_db
+      - POSTGRES_USER=nssm_user
+      - POSTGRES_PASSWORD=nssm_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nssm-internal
+      - nssm-external
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # Scraper service
+  scraper:
+    build:
+      context: .
+      dockerfile: scraper/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=nssm_db
+      - POSTGRES_USER=nssm_user
+      - POSTGRES_PASSWORD=nssm_password
+      - SCRAPER_INTERVAL_MINUTES=${SCRAPER_INTERVAL_MINUTES:-60}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nssm-internal
+    volumes:
+      - scraper_logs:/app/logs
+      - ./scripts:/app/scripts:ro
+    command: ["/app/scripts/entrypoint-scraper.sh", "cron"]
+    restart: unless-stopped
+
+  # NLP service
+  nlp:
+    build:
+      context: .
+      dockerfile: nlp/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=nssm_db
+      - POSTGRES_USER=nssm_user
+      - POSTGRES_PASSWORD=nssm_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nssm-internal
+    volumes:
+      - nlp_logs:/app/logs
+    restart: unless-stopped
+
+  # Analytics service (with cron scheduling)
+  analytics:
+    build:
+      context: .
+      dockerfile: analytics/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=nssm_db
+      - POSTGRES_USER=nssm_user
+      - POSTGRES_PASSWORD=nssm_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nssm-internal
+    volumes:
+      - analytics_logs:/app/logs
+      - analytics_data:/app/data
+      - ./scripts:/app/scripts:ro
+    command: ["/app/scripts/entrypoint-analytics.sh", "cron"]
+    restart: unless-stopped
+
+  # Market data service
+  market:
+    build:
+      context: .
+      dockerfile: market/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=nssm_db
+      - POSTGRES_USER=nssm_user
+      - POSTGRES_PASSWORD=nssm_password
+      - MARKET_INTERVAL_MINUTES=${MARKET_INTERVAL_MINUTES:-30}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nssm-internal
+    volumes:
+      - market_logs:/app/logs
+      - market_cache:/app/cache
+      - ./scripts:/app/scripts:ro
+    command: ["/app/scripts/entrypoint-market.sh", "cron"]
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  scraper_logs:
+  nlp_logs:
+  analytics_logs:
+  analytics_data:
+  market_logs:
+  market_cache:
 
 networks:
-  nssm-network:
+  nssm-internal:
+    driver: bridge
+    internal: true
+  nssm-external:
     driver: bridge

@@ -1,41 +1,12 @@
-# Use Python 3.11 slim buster as base image
-FROM python:3.11-slim-buster
+# Dashboard service Dockerfile (extends base image)
+FROM nssm-base:latest
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV POETRY_VERSION=1.7.1
-ENV POETRY_HOME="/opt/poetry"
-ENV POETRY_VENV="/opt/poetry-venv"
-ENV POETRY_CACHE_DIR="/opt/.cache"
-
-# Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        build-essential \
-        curl \
-        git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="${POETRY_HOME}/bin:$PATH"
-
-# Set work directory
-WORKDIR /app
-
-# Copy poetry files
-COPY pyproject.toml poetry.lock ./
-
-# Install dependencies
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-dev --no-interaction --no-ansi
-
-# Copy source code
-COPY . .
-
-# Expose port (for Streamlit dashboard)
+# Expose Streamlit port
 EXPOSE 8501
 
-# Default command
+# Health check for Streamlit
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8501').raise_for_status()" || exit 1
+
+# Default command for dashboard service
 CMD ["poetry", "run", "streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]

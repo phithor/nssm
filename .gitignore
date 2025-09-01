@@ -76,3 +76,13 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Dependency directories
+node_modules/
+# Editor directories and files
+.idea
+.vscode
+
+# Task files
+# tasks.json
+# tasks/ 

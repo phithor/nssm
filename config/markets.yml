@@ -1,0 +1,118 @@
+# Scandinavian Market Configuration
+# Maps ISIN codes to tickers and exchanges for news and announcement fetching
+# Format: ISIN -> {ticker: string, exchange: string, name: string}
+
+markets:
+  # Oslo Børs (Norway) - Major companies
+  NO0010002582:  # Equinor ASA
+    ticker: EQNR
+    exchange: OSE
+    name: "Equinor ASA"
+  NO0010098240:  # Telenor ASA
+    ticker: TEL
+    exchange: OSE
+    name: "Telenor ASA"
+  NO0003054108:  # DNB Bank ASA
+    ticker: DNB
+    exchange: OSE
+    name: "DNB Bank ASA"
+  NO0010650019:  # Yara International ASA
+    ticker: YAR
+    exchange: OSE
+    name: "Yara International ASA"
+  NO0010835630:  # Orkla ASA
+    ticker: ORK
+    exchange: OSE
+    name: "Orkla ASA"
+
+  # Nasdaq Stockholm (Sweden) - Major companies
+  SE0000112248:  # Volvo AB
+    ticker: VOLV-B
+    exchange: STO
+    name: "Volvo AB Class B"
+  SE0000108656:  # Ericsson AB
+    ticker: ERIC-B
+    exchange: STO
+    name: "Ericsson AB Class B"
+  SE0007100581:  # H&M Hennes & Mauritz AB
+    ticker: HM-B
+    exchange: STO
+    name: "H&M Hennes & Mauritz AB Class B"
+  SE0000115420:  # Svenska Handelsbanken AB
+    ticker: SHB-A
+    exchange: STO
+    name: "Svenska Handelsbanken AB Class A"
+  SE0000190494:  # Nordea Bank Abp
+    ticker: NDA-SE
+    exchange: STO
+    name: "Nordea Bank Abp"
+
+  # Nasdaq Copenhagen (Denmark) - Major companies
+  DK0010268606:  # Novo Nordisk A/S
+    ticker: NOVO-B
+    exchange: CPH
+    name: "Novo Nordisk A/S Class B"
+  DK0010234467:  # Danske Bank A/S
+    ticker: DANSKE
+    exchange: CPH
+    name: "Danske Bank A/S"
+  DK0010244425:  # Ørsted A/S
+    ticker: ORSTED
+    exchange: CPH
+    name: "Ørsted A/S"
+  DK0010267124:  # Carlsberg A/S
+    ticker: CARL-B
+    exchange: CPH
+    name: "Carlsberg A/S Class B"
+
+  # Nasdaq Helsinki (Finland) - Major companies
+  FI0009000681:  # Nokia Oyj
+    ticker: NOKIA
+    exchange: HEX
+    name: "Nokia Oyj"
+  FI0009005961:  # Neste Oyj
+    ticker: NESTE
+    exchange: HEX
+    name: "Neste Oyj"
+  FI0009000400:  # Stora Enso Oyj
+    ticker: STERV
+    exchange: HEX
+    name: "Stora Enso Oyj Class R"
+  FI0009005987:  # Kone Oyj
+    ticker: KNEBV
+    exchange: HEX
+    name: "Kone Oyj"
+
+# Exchange configurations
+exchanges:
+  OSE:
+    name: "Oslo Børs"
+    country: "Norway"
+    timezone: "Europe/Oslo"
+    newsweb_url: "https://newsweb.oslobors.no/api/v1"
+    rss_url: "https://www.nasdaqomxnordic.com/shares"
+
+  STO:
+    name: "Nasdaq Stockholm"
+    country: "Sweden"
+    timezone: "Europe/Stockholm"
+    rss_url: "https://www.nasdaqomxnordic.com/shares"
+
+  CPH:
+    name: "Nasdaq Copenhagen"
+    country: "Denmark"
+    timezone: "Europe/Copenhagen"
+    rss_url: "https://www.nasdaqomxnordic.com/shares"
+
+  HEX:
+    name: "Nasdaq Helsinki"
+    country: "Finland"
+    timezone: "Europe/Helsinki"
+    rss_url: "https://www.nasdaqomxnordic.com/shares"
+
+# OpenBB configuration
+openbb:
+  max_calls_per_minute: 60
+  semaphore_limit: 50
+  cache_ttl_minutes: 5
+  timezone: "Europe/Oslo"

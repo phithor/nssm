@@ -93,7 +93,7 @@ Alerts: {condition, triggered_time}.
 Integrations
 Finance data: OpenBB SDK plug-in modules.
 
-News feeds: RSS/Oslo Børs/Nasdaq OMX scrapers.
+News feeds: OpenBB SDK for Scandinavian stock news and announcements.
 
 Optional future: Telegram/Discord/Slack push bots.
 

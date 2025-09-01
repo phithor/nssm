@@ -262,7 +262,7 @@
         "dependencies": [
           3
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -270,7 +270,7 @@
             "description": "Create a simple, fast heuristic to determine whether a post is Norwegian or Swedish based on forum locale or character patterns.",
             "dependencies": [],
             "details": "Add nlp/lang_detect.py with a function detect_lang(text, locale_hint) → 'no' | 'sv'. Use locale metadata first, fall back to character bigram frequency thresholds. Unit-test with mixed examples.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -279,7 +279,7 @@
             "description": "Develop utilities to clean URLs, remove emojis, lowercase text, and map finance slang to canonical forms.",
             "dependencies": [],
             "details": "Add nlp/preprocess.py with clean_text(text) pipeline. Include regex URL stripping, emoji regex, slang dict load from JSON. Provide standalone CLI for quick testing and unit tests for each transform.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -288,7 +288,7 @@
             "description": "Implement model loader that lazily downloads and caches Norwegian and Swedish BERT sentiment heads.",
             "dependencies": [],
             "details": "Add nlp/model.py with get_model(lang) that returns (tokenizer, model) from 'NbAiLab/nb-bert-base' or 'KBLab/swe-bert'. Use transformers.AutoModelForSequenceClassification & AutoTokenizer with torch_dtype inference and local_dir cache.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -301,7 +301,7 @@
               "4.3"
             ],
             "details": "Add nlp/infer.py with run_inference(posts, lang). Use torch.no_grad(), DataLoader with batch_size configurable, device auto-select. Return list[{'post_id': id, 'score': float}]. Capture runtime metrics.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -312,20 +312,21 @@
               "4.4"
             ],
             "details": "Add nlp/db_io.py using SQLAlchemy session. Function fetch_unscored(limit) and save_scores(score_rows). Include retry logic & index hint comment for performance.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
             "id": 6,
-            "title": "Expose CLI & Scheduler Integration with Logging",
-            "description": "Wire pipeline into a CLI entry-point and schedule it every two minutes with proper logging and Prometheus metrics.",
+            "title": "Integrate Scandinavian News & Company Announcements via OpenBB",
+            "description": "Extend the data ingestion layer to pull Scandinavian stock-related news and official company announcements using the OpenBB SDK and Nordic exchange APIs.",
             "dependencies": [
-              "4.4",
-              "4.5"
+              2
             ],
-            "details": "Create nlp/__main__.py to invoke run_pipeline(). Register console_script in pyproject.toml. Use schedule.every(2).minutes.do(run_pipeline). Hook python-json-logger and prometheus_client counters.",
+            "details": "1. Folder structure\n   • market/news_openbb.py – wraps OpenBB news endpoints.\n   • market/announcements.py – fetches company filings from Oslo Børs NewsWeb and Nasdaq OMX Nordic APIs.\n   • schemas/news.py – SQLAlchemy model update (add columns source, importance, body_html, created_at_idx).\n   • config/markets.yml – map ISIN⇔ticker⇔exchange to drive look-ups.\n\n2. OpenBB integration\n   • Use openbb.stocks.news(ticker, start, limit=50) which returns headline, link, summary, datetime.\n   • For each Scandinavian ticker in config, call once per hour (schedule.every().hour).\n   • Convert UTC → Europe/Oslo timezone, store in news table, set source='openbb'.\n   • Implement upsert on (ticker, headline, published) to avoid duplicates.\n\n3. Official announcements\n   • Oslo Børs NewsWeb: GET https://newsweb.oslobors.no/api/v1/news?issuerId={id}&from={ISO}.\n   • Nasdaq OMX Nordic filings: RSS https://www.nasdaqomxnordic.com/shares/NewsRelease?Instrument=SE{RIC}. Parse with feedparser.\n   • Normalize fields (headline, body_html, url, published, category='filing', importance=1.0).\n\n4. Incremental state\n   • news_state.json persisted in cache/ to hold last_fetch_ts per source.\n   • If last_fetch_ts is >48h ago, back-fill via pagination.\n\n5. CLI & scheduler\n   • entry point: python -m market.news_sync run --backfill 7d\n   • Register with existing cron container (Task 9) via schedule.every(10).minutes.\n\n6. Logging & metrics\n   • Use structlog; emit gauge ``news_items_fetched`` to Prometheus pushgateway if env var PROM_PUSHGATEWAY is set.\n\n7. Security & rate limits\n   • Respect OpenBB free tier rate: max 60 calls/min. Implement asyncio.Semaphore(50) around requests.\n   • Cache identical calls inside 5-minute TTL using functools.lru_cache.\n\n8. Documentation\n   • docs/INGEST_NEWS.md covering field mapping, env vars (OPENBB_API_KEY), troubleshooting.",
             "status": "pending",
-            "testStrategy": ""
+            "priority": "high",
+            "testStrategy": "1. Unit tests (pytest)\n   • Mock openbb.stocks.news to return sample JSON; assert  ›10 items parsed and persisted, duplicate keys ignored.\n   • Mock Oslo Børs and Nasdaq Nordic endpoints with responses library, covering pagination and malformed entries.\n\n2. Integration tests with VCR.py\n   • Record live call for ticker 'EQNR'. Replay and verify at least one row insert.\n\n3. State recovery test\n   • Set news_state.json with last_fetch_ts 24h ago, run sync, ensure only items >24h are fetched.\n\n4. Container test\n   • `docker-compose run market news_sync --backfill 1d`; exit code 0 and stdout contains \"Saved\" count.\n\n5. Performance test\n   • Time sync for 200 tickers ≤ 90 s on GitHub CI runner; fail if slower.",
+            "subtasks": []
           },
           {
             "id": 7,
@@ -340,7 +341,7 @@
               "4.6"
             ],
             "details": "Add tests/ with pytest fixtures: mock_model returning fixed logits, temporary SQLite DB seeded with 10 sample posts. Assert sentiment_score populated and CLI exit code 0. Include GitHub Actions job reference for Task 10.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -355,7 +356,7 @@
         "dependencies": [
           4
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -363,7 +364,7 @@
             "description": "Use SQLAlchemy to retrieve posts and their sentiment scores from the last N hours per ticker.",
             "dependencies": [],
             "details": "Create function get_recent_posts(session, hours_back) in analytics/aggregator.py. Ensure proper indexes on posts.timestamp and posts.ticker for performance.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -374,7 +375,7 @@
               "5.1"
             ],
             "details": "Use pandas.Grouper(freq='5min') on a DataFrame built from step 1 results. Output DataFrame columns: ticker, interval_start, interval_end, avg_score, post_cnt.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -385,7 +386,7 @@
               "5.2"
             ],
             "details": "Leverage SQLAlchemy bulk operations with ON CONFLICT DO UPDATE for upsert logic. Wrap in transaction and commit.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -396,7 +397,7 @@
               "5.3"
             ],
             "details": "For each ticker, maintain 24h history using sentiment_agg. Compute z = (current_cnt-mean)/std. Insert into anomalies table with direction = 'positive' or 'negative'.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -408,7 +409,7 @@
               "5.4"
             ],
             "details": "Use schedule or APScheduler in a CLI entry point. Create indexes on sentiment_agg(ticker, interval_start) and anomalies(ticker, window_start). Ensure job logs metrics.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -419,102 +420,98 @@
               "5.4"
             ],
             "details": "Generate synthetic DataFrame, run through aggregation/anomaly functions, and assert expected rows in sentiment_agg and anomalies. Use pytest fixtures and in-memory SQLite.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
       },
       {
         "id": 6,
-        "title": "Implement Alerting Engine",
-        "description": "Generate local notifications/logs when anomaly or sentiment flip occurs.",
-        "details": "• alerts/engine.py: listen to anomalies table inserts via polling.\n• Rules configurable YAML (config/alerts.yml) e.g., post_cnt_z>2 & sentiment_avg>0.3.\n• Notify via: print to stdout, desktop notify (plyer), optional webhook POST.\n• Persist alert to alerts table.",
-        "testStrategy": "Mock anomaly event, run engine → capture stdout and DB row count++. Validate webhook sent via httpbin stub.",
-        "priority": "medium",
+        "title": "Integrate Scandinavian News & Company Announcements via OpenBB",
+        "description": "Extend the data ingestion layer to pull Scandinavian stock-related news and official company announcements using the OpenBB SDK and Nordic exchange APIs.",
+        "details": "1. Folder structure\n   • market/news_openbb.py – wraps OpenBB news endpoints.\n   • market/announcements.py – fetches company filings from Oslo Børs NewsWeb and Nasdaq OMX Nordic APIs.\n   • schemas/news.py – SQLAlchemy model update (add columns source, importance, body_html, created_at_idx).\n   • config/markets.yml – map ISIN⇔ticker⇔exchange to drive look-ups.\n\n2. OpenBB integration\n   • Use openbb.stocks.news(ticker, start, limit=50) which returns headline, link, summary, datetime.\n   • For each Scandinavian ticker in config, call once per hour (schedule.every().hour).\n   • Convert UTC → Europe/Oslo timezone, store in news table, set source='openbb'.\n   • Implement upsert on (ticker, headline, published) to avoid duplicates.\n\n3. Official announcements\n   • Oslo Børs NewsWeb: GET https://newsweb.oslobors.no/api/v1/news?issuerId={id}&from={ISO}.\n   • Nasdaq OMX Nordic filings: RSS https://www.nasdaqomxnordic.com/shares/NewsRelease?Instrument=SE{RIC}. Parse with feedparser.\n   • Normalize fields (headline, body_html, url, published, category='filing', importance=1.0).\n\n4. Incremental state\n   • news_state.json persisted in cache/ to hold last_fetch_ts per source.\n   • If last_fetch_ts is >48h ago, back-fill via pagination.\n\n5. CLI & scheduler\n   • entry point: python -m market.news_sync run --backfill 7d\n   • Register with existing cron container (Task 9) via schedule.every(10).minutes.\n\n6. Logging & metrics\n   • Use structlog; emit gauge ``news_items_fetched`` to Prometheus pushgateway if env var PROM_PUSHGATEWAY is set.\n\n7. Security & rate limits\n   • Respect OpenBB free tier rate: max 60 calls/min. Implement asyncio.Semaphore(50) around requests.\n   • Cache identical calls inside 5-minute TTL using functools.lru_cache.\n\n8. Documentation\n   • docs/INGEST_NEWS.md covering field mapping, env vars (OPENBB_API_KEY), troubleshooting.",
+        "testStrategy": "1. Unit tests (pytest)\n   • Mock openbb.stocks.news to return sample JSON; assert  ›10 items parsed and persisted, duplicate keys ignored.\n   • Mock Oslo Børs and Nasdaq Nordic endpoints with responses library, covering pagination and malformed entries.\n\n2. Integration tests with VCR.py\n   • Record live call for ticker 'EQNR'. Replay and verify at least one row insert.\n\n3. State recovery test\n   • Set news_state.json with last_fetch_ts 24h ago, run sync, ensure only items >24h are fetched.\n\n4. Container test\n   • `docker-compose run market news_sync --backfill 1d`; exit code 0 and stdout contains \"Saved\" count.\n\n5. Performance test\n   • Time sync for 200 tickers ≤ 90 s on GitHub CI runner; fail if slower.",
+        "status": "done",
+        "priority": "high",
         "dependencies": [
-          5
+          2
         ],
-        "status": "pending",
         "subtasks": [
           {
             "id": 1,
-            "title": "Design alert rule schema & YAML parser",
-            "description": "Define a flexible rule schema and implement a parser that loads config/alerts.yml into in-memory objects.",
+            "title": "Update Data Models and Configuration for News & Announcements",
+            "description": "Extend the SQLAlchemy news schema and update configuration files to support new fields and Scandinavian ticker mappings.",
             "dependencies": [],
-            "details": "• Specify allowed operands (>, <, >=, <=, =, !=) and logical operators (AND, OR).\n• Support metric placeholders post_cnt_z, sentiment_avg, etc.\n• Use pydantic models for validation; raise on bad config.\n• Expose get_rules() that returns list[Rule].",
-            "status": "pending",
-            "testStrategy": ""
+            "details": "Modify schemas/news.py to add columns: source, importance, body_html, and created_at_idx. Update config/markets.yml to map ISIN, ticker, and exchange for Scandinavian equities. Ensure the schema supports both news and official announcements, and that configuration enables lookup for all relevant tickers and exchanges.",
+            "status": "done",
+            "testStrategy": "Run alembic migrations and verify schema changes. Validate config lookups for a sample of Scandinavian tickers."
           },
           {
             "id": 2,
-            "title": "Poll anomalies table & evaluate rules",
-            "description": "Continuously read new rows from anomalies table and apply loaded rules to determine trigger events.",
+            "title": "Implement OpenBB News Ingestion Wrapper",
+            "description": "Develop market/news_openbb.py to fetch and normalize news for Scandinavian tickers using the OpenBB SDK.",
             "dependencies": [
               "6.1"
             ],
-            "details": "• Implement polling loop with last_seen_id checkpoint.\n• Map anomaly row fields to rule metrics.\n• For each anomaly evaluate all rules; yield AlertEvent objects on match.\n• Configurable poll interval via env/CLI.",
-            "status": "pending",
-            "testStrategy": ""
+            "details": "Use openbb.stocks.news(ticker, start, limit=50) to fetch news for each ticker in config. Normalize fields (headline, link, summary, datetime) and convert UTC to Europe/Oslo timezone. Implement upsert logic on (ticker, headline, published) to avoid duplicates. Store results in the news table with source='openbb'.",
+            "status": "done",
+            "testStrategy": "Mock OpenBB SDK responses and assert correct parsing, normalization, and upsert behavior. Test hourly scheduling logic."
           },
           {
             "id": 3,
-            "title": "Implement notification channels interface",
-            "description": "Create notifier abstraction plus concrete stdout, desktop (plyer), and webhook POST implementations.",
+            "title": "Integrate Official Company Announcements from Nordic Exchanges",
+            "description": "Create market/announcements.py to fetch, parse, and normalize company filings from Oslo Børs NewsWeb and Nasdaq OMX Nordic APIs.",
             "dependencies": [
               "6.1"
             ],
-            "details": "• Base class Notifier.send(AlertEvent).\n• StdoutNotifier prints JSON.\n• DesktopNotifier uses plyer.notification.\n• WebhookNotifier reads URL from env; async requests.post.\n• Pluggable via alerts.yml channel list.",
-            "status": "pending",
-            "testStrategy": ""
+            "details": "Implement GET requests to Oslo Børs NewsWeb and parse Nasdaq OMX Nordic RSS feeds using feedparser. Normalize fields (headline, body_html, url, published, category='filing', importance=1.0). Store announcements in the news table, ensuring deduplication and correct field mapping.",
+            "status": "done",
+            "testStrategy": "Mock API and RSS responses, including pagination and malformed entries. Assert correct normalization and persistence."
           },
           {
             "id": 4,
-            "title": "Persist alerts to database with idempotency",
-            "description": "Insert triggered alerts into alerts table, avoiding duplicates on retried polling cycles.",
+            "title": "Implement Incremental State Management and Backfill Logic",
+            "description": "Add logic to persist and manage news_state.json for tracking last fetch timestamps and support backfilling.",
             "dependencies": [
-              "6.1",
               "6.2",
               "6.3"
             ],
-            "details": "• Define SQLAlchemy Alert model if not existing.\n• Unique constraint on (anomaly_id, rule).\n• Upsert logic (ON CONFLICT DO NOTHING).\n• Wrap in transactional session; commit per batch.",
-            "status": "pending",
-            "testStrategy": ""
+            "details": "Persist last_fetch_ts per source in cache/news_state.json. On each run, check if last_fetch_ts is >48h ago and trigger backfill with pagination. Ensure state is updated after each successful fetch and that backfill covers missed intervals.",
+            "status": "done",
+            "testStrategy": "Simulate missed fetches and verify backfill logic retrieves all missing news. Assert state file updates correctly."
           },
           {
             "id": 5,
-            "title": "Write unit tests for alerting engine",
-            "description": "Mock anomalies, rules, and notifiers to verify notifications sent and DB rows created as expected.",
+            "title": "Develop CLI Entry Point, Scheduler, Logging, and Metrics",
+            "description": "Create a CLI entry point for news sync, integrate with the scheduler, add logging, metrics, and enforce rate limits and caching.",
             "dependencies": [
-              "6.1",
-              "6.2",
-              "6.3",
               "6.4"
             ],
-            "details": "• Use pytest + pytest-mock.\n• Fixture for in-memory SQLite DB.\n• Patch plyer and requests to capture calls.\n• Assert stdout contents.\n• Coverage target ≥90%.",
-            "status": "pending",
-            "testStrategy": ""
+            "details": "Implement python -m market.news_sync run --backfill 7d as the entry point. Register with the cron container to run every 10 minutes. Use structlog for logging and emit news_items_fetched to Prometheus if PROM_PUSHGATEWAY is set. Enforce OpenBB rate limits with asyncio.Semaphore(50) and cache identical calls with functools.lru_cache (5-min TTL). Document field mapping, environment variables, and troubleshooting in docs/INGEST_NEWS.md.",
+            "status": "done",
+            "testStrategy": "Run end-to-end integration tests with the CLI, verify scheduling, logging, metrics emission, rate limiting, and caching. Review generated documentation for completeness."
           }
         ]
       },
       {
         "id": 7,
-        "title": "Fetch Market Data & News Integrations",
-        "description": "Integrate OpenBB SDK & RSS feeds to pull price/news aligned by ticker+timestamp.",
-        "details": "• market/data.py: openbb.stocks.price(ticker, interval=1) hourly.\n• news/rss.py: feedparser on Oslo Børs & Nasdaq OMX.\n• Store market_prices(id,ticker,price,ts) and news(id,ticker,title,url,published).\n• Schedule via schedule library.",
-        "testStrategy": "Integration test with sandbox ticker ‘EQNR’. Assert price row exists, RSS items saved. Use VCR.py to record HTTP.",
+        "title": "Implement Market Price Data Integration via OpenBB",
+        "description": "Integrate OpenBB SDK to pull price data aligned by ticker+timestamp.",
+        "details": "• market/data.py: openbb.stocks.price(ticker, interval=1) hourly.\n• Store market_prices(id,ticker,price,ts).\n• Schedule via schedule library.",
+        "testStrategy": "Integration test with sandbox ticker 'EQNR'. Assert price row exists. Use VCR.py to record HTTP.",
         "priority": "medium",
         "dependencies": [
           2
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
             "title": "Design SQLAlchemy Models & Migrations",
-            "description": "Create market_prices and news tables with appropriate columns, indices, and Alembic migration scripts.",
+            "description": "Create market_prices table with appropriate columns, indices, and Alembic migration scripts.",
             "dependencies": [],
-            "details": "• Define models in db/models.py with id UUID PK, ticker FK, timestamps.\n• Add unique constraints on (ticker, ts) for market_prices and (ticker, url) for news.\n• Generate Alembic revision, test upgrade/downgrade on local Postgres.",
-            "status": "pending",
+            "details": "• Define models in db/models.py with id UUID PK, ticker FK, timestamps.\n• Add unique constraints on (ticker, ts) for market_prices.\n• Generate Alembic revision, test upgrade/downgrade on local Postgres.",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -525,41 +522,29 @@
               "7.1"
             ],
             "details": "• Wrapper in market/data.py with tenacity retry, backoff ≤60s, and async semaphore rate limiter.\n• Normalize response into model schema and commit via session.\n• Handle API errors and log.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
             "id": 3,
-            "title": "Implement RSS Feed Ingestion & Ticker Mapping",
-            "description": "Parse Oslo Børs & Nasdaq OMX feeds, map articles to tickers, and persist deduped news rows.",
+            "title": "Schedule Periodic Fetch Jobs with Deduplication",
+            "description": "Set up schedule library to run price fetchers at defined intervals with idempotency.",
             "dependencies": [
-              "7.1"
+              "7.2"
             ],
-            "details": "• Use feedparser to pull XML, extract title, link, published.\n• Regex / symbol map file to detect tickers in title/summary.\n• Upsert into news table, skipping existing (ticker,url).",
-            "status": "pending",
+            "details": "• Hourly job for prices.\n• Maintain last-checked timestamps; skip if already processed.\n• Add CLI entrypoint scheduler/main.py.",
+            "status": "done",
             "testStrategy": ""
           },
           {
             "id": 4,
-            "title": "Schedule Periodic Fetch Jobs with Deduplication",
-            "description": "Set up schedule library to run price and news fetchers at defined intervals with idempotency.",
-            "dependencies": [
-              "7.2",
-              "7.3"
-            ],
-            "details": "• Hourly job for prices, 15-min job for news.\n• Maintain last-checked timestamps; skip if already processed.\n• Add CLI entrypoint scheduler/main.py.",
-            "status": "pending",
-            "testStrategy": ""
-          },
-          {
-            "id": 5,
-            "title": "Write Integration Tests with VCR.py & Sample Feeds",
+            "title": "Write Integration Tests with VCR.py",
             "description": "Ensure end-to-end data pipeline stores rows and avoids duplicates using recorded HTTP interactions.",
             "dependencies": [
-              "7.4"
+              "7.3"
             ],
-            "details": "• Use pytest + VCR.py cassettes for OpenBB & RSS requests.\n• Seed in-memory Postgres, run scheduler, assert expected row counts.\n• Include fixture CSV of sample RSS for offline test mode.",
-            "status": "pending",
+            "details": "• Use pytest + VCR.py cassettes for OpenBB requests.\n• Seed in-memory Postgres, run scheduler, assert expected row counts.",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -573,9 +558,10 @@
         "priority": "medium",
         "dependencies": [
           5,
+          6,
           7
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -583,7 +569,7 @@
             "description": "Create the initial Streamlit application structure with Docker support and basic run script.",
             "dependencies": [],
             "details": "• Create dashboard/app.py with placeholder layout (sidebar + main).\n• Configure Streamlit in .streamlit/config.toml (theme, page title, wide layout).\n• Update Dockerfile to install streamlit and expose port 8501; add CMD \"streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0\".\n• Verify local run: `streamlit run dashboard/app.py` renders empty page.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -594,7 +580,7 @@
               "8.1"
             ],
             "details": "• Connect via SQLAlchemy engine from config.\n• Functions: get_buzzing_heatmap_data(start,end), get_sentiment_price_series(ticker,start,end), get_news_overlay(ticker,start,end).\n• Apply @st.cache_data(ttl=300).\n• Return pandas DataFrames ready for Plotly.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -606,7 +592,7 @@
               "8.2"
             ],
             "details": "• Use get_buzzing_heatmap_data() output.\n• Create Plotly heatmap figure with color-scale diverging centered at 0.\n• Add hover showing post count, z-score.\n• Integrate figure into Streamlit container.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -618,7 +604,7 @@
               "8.2"
             ],
             "details": "• get_sentiment_price_series() returns sentiment and price columns.\n• Plotly secondary y-axis: left = sentiment, right = price.\n• get_news_overlay() provides vertical lines + tooltip headlines.\n• Add range slider & adaptive x-axis ticks.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -632,7 +618,7 @@
               "8.4"
             ],
             "details": "• st.sidebar.date_input for start/end, st.sidebar.multiselect for tickers.\n• Use st.session_state to propagate selections.\n• Trigger data reload functions with selected parameters; ensure minimal reruns.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -647,7 +633,7 @@
               "8.5"
             ],
             "details": "• Add cypress/ directory with tests: visit '/', assert heatmap and line chart load within 1 s.\n• Use cy.request to validate backend API latency.\n• docker-compose override maps 8501:8501; GitHub Action runs `docker-compose up -d dashboard && npx cypress run`.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -667,7 +653,7 @@
           7,
           8
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -675,7 +661,7 @@
             "description": "Author individual Dockerfiles or a shared base image for scraper, nlp, aggregator, alert, market, dashboard services.",
             "dependencies": [],
             "details": "• Decide between shared Python base image vs per-service Dockerfile.\n• Install OS libs (curl, git, cron) and Python 3.11 + poetry/requirements.\n• Copy service code, install dependencies, set non-root user.\n• Output images tagged nssm/<service>:latest for use in compose.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -686,7 +672,7 @@
               "9.1"
             ],
             "details": "• Define services: db, scraper, nlp, aggregator, alert, market, dashboard.\n• Reference images built in 9.1 or build context paths.\n• Create internal network \"nssm_net\"; attach all containers.\n• Mount volumes for persistent db data and logs.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -697,7 +683,7 @@
               "9.2"
             ],
             "details": "• Add healthcheck sections (curl /health, pg_isready, etc.) with suitable intervals/timeouts.\n• Create .env file holding DB creds, API keys, scheduler intervals.\n• Map environment: key=value or env_file in compose.\n• Fail containers on unhealthy status for easier orchestration.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -709,7 +695,7 @@
               "9.3"
             ],
             "details": "• Write entrypoint.sh per service: migrate DB, start cron or python scheduler.\n• Use crontab files or schedule lib; e.g., scraper every minute, aggregator hourly.\n• Ensure logs stream to stdout for docker-compose logging.\n• Update Dockerfiles (9.1) to COPY entrypoint & set CMD.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -721,7 +707,7 @@
               "9.4"
             ],
             "details": "• Run `docker-compose up -d`; verify `docker-compose ps` shows healthy.\n• Tail logs to confirm cron jobs trigger and DB writes occur.\n• Hit dashboard on localhost:8501, expect HTTP 200.\n• Document setup, env vars, common commands, troubleshooting.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -793,7 +779,7 @@
     ],
     "metadata": {
       "created": "2025-08-26T13:47:28.377Z",
-      "updated": "2025-08-27T13:08:51.772Z",
+      "updated": "2025-09-01T09:03:51.387Z",
       "description": "Tasks for master context"
     }
   }
