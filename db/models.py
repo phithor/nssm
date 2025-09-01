@@ -87,7 +87,7 @@ class SentimentAgg(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Index for time-series queries
-    __table_args__ = {"postgresql_partition_by": "RANGE (interval_start)"}
+    __table_args__ = ()
 
 
 class Anomaly(Base):
@@ -143,7 +143,7 @@ class News(Base):
     )  # For query optimization
 
     # Composite index for upsert operations to prevent duplicates
-    __table_args__ = {"postgresql_partition_by": "RANGE (published_at)"}
+    __table_args__ = ()
 
 
 class MarketPrice(Base):
@@ -175,5 +175,4 @@ class MarketPrice(Base):
         UniqueConstraint(
             "ticker", "timestamp", "interval", name="unique_ticker_timestamp_interval"
         ),
-        {"postgresql_partition_by": "RANGE (timestamp)"},
     )

@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # Dashboard service (external access)
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    networks:
+      - nssm-external
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # Scraper service
+  scraper:
+    build:
+      context: .
+      dockerfile: scraper/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SCRAPER_INTERVAL_MINUTES=${SCRAPER_INTERVAL_MINUTES:-60}
+    networks:
+      - nssm-internal
+    volumes:
+      - scraper_logs:/app/logs
+      - ./scripts:/app/scripts:ro
+    command: ["/app/scripts/entrypoint-scraper.sh", "cron"]
+    restart: unless-stopped
+
+  # NLP service
+  nlp:
+    build:
+      context: .
+      dockerfile: nlp/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - nssm-internal
+    volumes:
+      - nlp_logs:/app/logs
+    restart: unless-stopped
+
+  # Analytics service (with cron scheduling)
+  analytics:
+    build:
+      context: .
+      dockerfile: analytics/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - nssm-internal
+    volumes:
+      - analytics_logs:/app/logs
+      - analytics_data:/app/data
+      - ./scripts:/app/scripts:ro
+    command: ["/app/scripts/entrypoint-analytics.sh", "cron"]
+    restart: unless-stopped
+
+  # Market data service
+  market:
+    build:
+      context: .
+      dockerfile: market/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - MARKET_INTERVAL_MINUTES=${MARKET_INTERVAL_MINUTES:-30}
+    networks:
+      - nssm-internal
+    volumes:
+      - market_logs:/app/logs
+      - market_cache:/app/cache
+      - ./scripts:/app/scripts:ro
+    command: ["/app/scripts/entrypoint-market.sh", "cron"]
+    restart: unless-stopped
+
+volumes:
+  scraper_logs:
+  nlp_logs:
+  analytics_logs:
+  analytics_data:
+  market_logs:
+  market_cache:
+
+networks:
+  nssm-internal:
+    driver: bridge
+    internal: true
+  nssm-external:
+    driver: bridge

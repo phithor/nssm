@@ -2,7 +2,7 @@
 Database Models & Migrations Module
 
 This module handles database connections, ORM models, and migrations
-for the NSSM system using SQLAlchemy and PostgreSQL.
+for the NSSM system using SQLAlchemy and supports both PostgreSQL and MySQL/MariaDB.
 """
 
 import os
@@ -17,7 +17,7 @@ load_dotenv()
 __version__ = "0.1.0"
 __author__ = "NSSM Team"
 
-# Database configuration
+# Database configuration - supports both PostgreSQL and MySQL/MariaDB
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://nssm_user:nssm_password@localhost:5432/nssm_db"
 )

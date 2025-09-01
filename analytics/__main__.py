@@ -67,9 +67,10 @@ def run_anomaly_detection(args):
     )
 
     if result['success']:
-        print("✅ Anomaly detection pipeline completed successfully!"        print(f"   🚨 Anomalies detected: {result['anomalies_detected']}")
+        print("✅ Anomaly detection pipeline completed successfully!")
+        print(f"   🚨 Anomalies detected: {result['anomalies_detected']}")
         print(f"   💾 Anomalies persisted: {result['anomalies_persisted']}")
-        print(".2f"    else:
+    else:
         print(f"❌ Anomaly detection pipeline failed: {result['error']}")
         return 1
 
