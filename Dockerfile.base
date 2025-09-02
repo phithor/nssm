@@ -20,7 +20,7 @@ WORKDIR /app
 
 # Copy Poetry files (use minimal version for base image)
 COPY pyproject.minimal.toml pyproject.toml
-COPY poetry.lock ./
+COPY poetry.minimal.lock poetry.lock
 
 # Configure Poetry and install minimal dependencies (shared across all services)
 RUN poetry config virtualenvs.create false \
