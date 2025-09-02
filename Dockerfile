@@ -21,13 +21,13 @@ COPY pyproject.toml poetry.lock ./
 
 # Configure Poetry and install dependencies
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-dev --no-root
+    && poetry install --only=main --no-root
 
 # Copy source code
 COPY . .
 
 # Install the package
-RUN poetry install --no-dev
+RUN poetry install --only=main
 
 # Create logs directory
 RUN mkdir -p /app/logs
