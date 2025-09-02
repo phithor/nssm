@@ -1,0 +1,3 @@
+[33m8c2fc0e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m feat: Complete MariaDB/MySQL support implementation
+[33m7afac3f[m[33m ([m[1;31morigin/master[m[33m)[m feat: Add MariaDB/MySQL support and remove PostgreSQL dependencies
+[33mfc6a0fe[m fix: resolve critical syntax and import errors

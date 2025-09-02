@@ -1,28 +1,6 @@
 version: '3.8'
 
 services:
-  # Database service
-  db:
-    image: timescale/timescaledb:latest-pg15
-    environment:
-      - POSTGRES_DB=nssm_db
-      - POSTGRES_USER=nssm_user
-      - POSTGRES_PASSWORD=nssm_password
-      - TS_ENABLE=true
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./db/migrations:/docker-entrypoint-initdb.d
-    networks:
-      - nssm-internal
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nssm_user -d nssm_db"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
   # Dashboard service (external access)
   dashboard:
     build:
@@ -31,17 +9,10 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=nssm_db
-      - POSTGRES_USER=nssm_user
-      - POSTGRES_PASSWORD=nssm_password
-    depends_on:
-      db:
-        condition: service_healthy
+      - DATABASE_URL=${DATABASE_URL}
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
     networks:
-      - nssm-internal
       - nssm-external
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
@@ -57,16 +28,8 @@ services:
       context: .
       dockerfile: scraper/Dockerfile
     environment:
-      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=nssm_db
-      - POSTGRES_USER=nssm_user
-      - POSTGRES_PASSWORD=nssm_password
+      - DATABASE_URL=${DATABASE_URL}
       - SCRAPER_INTERVAL_MINUTES=${SCRAPER_INTERVAL_MINUTES:-60}
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - nssm-internal
     volumes:
@@ -81,15 +44,7 @@ services:
       context: .
       dockerfile: nlp/Dockerfile
     environment:
-      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=nssm_db
-      - POSTGRES_USER=nssm_user
-      - POSTGRES_PASSWORD=nssm_password
-    depends_on:
-      db:
-        condition: service_healthy
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - nssm-internal
     volumes:
@@ -102,15 +57,7 @@ services:
       context: .
       dockerfile: analytics/Dockerfile
     environment:
-      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=nssm_db
-      - POSTGRES_USER=nssm_user
-      - POSTGRES_PASSWORD=nssm_password
-    depends_on:
-      db:
-        condition: service_healthy
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - nssm-internal
     volumes:
@@ -126,16 +73,8 @@ services:
       context: .
       dockerfile: market/Dockerfile
     environment:
-      - DATABASE_URL=postgresql://nssm_user:nssm_password@db:5432/nssm_db
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=nssm_db
-      - POSTGRES_USER=nssm_user
-      - POSTGRES_PASSWORD=nssm_password
+      - DATABASE_URL=${DATABASE_URL}
       - MARKET_INTERVAL_MINUTES=${MARKET_INTERVAL_MINUTES:-30}
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - nssm-internal
     volumes:
@@ -146,7 +85,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   scraper_logs:
   nlp_logs:
   analytics_logs:
