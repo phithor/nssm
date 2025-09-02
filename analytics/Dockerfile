@@ -1,5 +1,5 @@
 # Multi-stage build: Use base image as foundation
-FROM python:3.11-slim-buster as base
+FROM python:3.11-slim as base
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
