@@ -15,10 +15,11 @@ mysqlclient = "^2.2.4"
 sqlalchemy = "^2.0.43"
 alembic = "^1.13.1"
 pandas = "^2.3.2"
+streamlit = "^1.49.0"
+plotly = "^6.3.0"
 python-dotenv = "^1.1.1"
 pytz = "^2024.1"
 tenacity = "^8.2.3"
-yfinance = "^0.2.58"
 
 [build-system]
 requires = ["poetry-core"]

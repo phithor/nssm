@@ -2,9 +2,13 @@
 FROM nssm-base:latest
 
 # Install NLP-specific dependencies
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.nlp.toml pyproject.toml
+COPY poetry.nlp.lock poetry.lock
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
+
+# Copy NLP source code
+COPY nlp/ ./nlp/
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

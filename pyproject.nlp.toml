@@ -15,10 +15,12 @@ mysqlclient = "^2.2.4"
 sqlalchemy = "^2.0.43"
 alembic = "^1.13.1"
 pandas = "^2.3.2"
+scikit-learn = "^1.7.1"
+transformers = "^4.55.4"
+torch = {version = "^2.0.0", extras = ["cpu"]}
 python-dotenv = "^1.1.1"
 pytz = "^2024.1"
 tenacity = "^8.2.3"
-yfinance = "^0.2.58"
 
 [build-system]
 requires = ["poetry-core"]

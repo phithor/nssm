@@ -2,9 +2,13 @@
 FROM nssm-base:latest
 
 # Install dashboard-specific dependencies
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.dashboard.toml pyproject.toml
+COPY poetry.dashboard.lock poetry.lock
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
+
+# Copy dashboard source code
+COPY dashboard/ ./dashboard/
 
 # Expose Streamlit port
 EXPOSE 8501
