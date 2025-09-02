@@ -30,6 +30,3 @@ RUN mkdir -p /app/logs
 
 # Copy source code (shared across all services)
 COPY . .
-
-# Install the package
-RUN poetry install --only=main
