@@ -8,6 +8,7 @@ services:
       dockerfile: Dockerfile.base
     image: nssm-base:latest
     # This service doesn't run, just builds the base image
+    profiles: ["build"]
 
   # Dashboard service (external access)
   dashboard:

@@ -29,4 +29,13 @@ RUN poetry config virtualenvs.create false \
 RUN mkdir -p /app/logs
 
 # Copy source code (shared across all services)
-COPY . .
+# Copy only what's needed to avoid invalidating cache unnecessarily
+COPY scraper/ ./scraper/
+COPY nlp/ ./nlp/
+COPY analytics/ ./analytics/
+COPY market/ ./market/
+COPY dashboard/ ./dashboard/
+COPY db/ ./db/
+COPY scripts/ ./scripts/
+COPY .env* ./
+COPY README.md ./

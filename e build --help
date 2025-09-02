@@ -1,0 +1,3 @@
+[33m64b76d3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m feat: fix and improve Hegnar forum scraper - Fix selenium import issues by making imports optional - Update HegnarScraper with proven working implementation - Handle GDPR popups and redirects properly - Extract forum index data and full post content successfully - Fix bare except clause for better error handling
+[33m22c7393[m fix: disable Poetry package mode to resolve Docker build error
+[33m2c56f06[m feat: Implement shared base image to fix MySQL dependencies and reduce build time
