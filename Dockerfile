@@ -1,5 +1,36 @@
-# Dashboard service Dockerfile (extends base image)
-FROM nssm-base:latest
+# Dashboard service Dockerfile
+FROM python:3.11-slim-buster
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    cron \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN pip install poetry
+
+# Set working directory
+WORKDIR /app
+
+# Copy Poetry files
+COPY pyproject.toml poetry.lock ./
+
+# Configure Poetry and install dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-dev --no-root
+
+# Copy source code
+COPY . .
+
+# Install the package
+RUN poetry install --no-dev
+
+# Create logs directory
+RUN mkdir -p /app/logs
 
 # Expose Streamlit port
 EXPOSE 8501
