@@ -34,7 +34,7 @@ env.bak/
 venv.bak/
 
 # Poetry
-poetry.lock
+# poetry.lock  # Commented out - needed for Docker builds
 
 # IDE
 .vscode/
