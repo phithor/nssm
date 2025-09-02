@@ -18,7 +18,7 @@ alembic = "^1.13.1"
 pandas = "^2.3.2"
 scikit-learn = "^1.7.1"
 transformers = "^4.55.4"
-torch = "^2.0.0"
+torch = {version = "^2.0.0", extras = ["cpu"]}
 streamlit = "^1.49.0"
 plotly = "^6.3.0"
 schedule = "^1.2.2"

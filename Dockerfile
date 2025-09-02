@@ -1,6 +1,11 @@
 # Dashboard service Dockerfile
 FROM nssm-base:latest
 
+# Install dashboard-specific dependencies
+COPY pyproject.toml poetry.lock ./
+RUN poetry config virtualenvs.create false \
+    && poetry install --only=main --no-root
+
 # Expose Streamlit port
 EXPOSE 8501
 
