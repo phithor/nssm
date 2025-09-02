@@ -26,7 +26,7 @@ class HegnarScraper(Scraper):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def fetch(self, url: str, **kwargs) -> Optional[str]:
-        """Fetch forum page content"""
+        """Fetch forum page content with redirect handling"""
         try:
             # Check robots.txt compliance
             if not check_robots_txt(url, self.user_agent):
@@ -36,11 +36,14 @@ class HegnarScraper(Scraper):
             # Apply polite delay
             polite_delay()
 
-            # Fetch the page
-            response = self.session.get(url, timeout=30)
+            # Fetch the page with redirect handling
+            response = self.session.get(url, timeout=30, allow_redirects=True)
             response.raise_for_status()
 
             self.logger.info(f"Successfully fetched: {url}")
+            self.logger.info(f"Final URL: {response.url}")
+            self.logger.info(f"Status code: {response.status_code}")
+
             return response.text
 
         except Exception as e:
@@ -53,29 +56,11 @@ class HegnarScraper(Scraper):
         posts = []
 
         try:
-            # Find all thread rows in the forum index
-            thread_rows = soup.find_all("tr", class_=re.compile(r"thread.*list-row"))
+            # First try to extract forum index data (thread metadata)
+            posts.extend(self._extract_forum_index_data(soup))
 
-            for row in thread_rows:
-                try:
-                    post = self._parse_thread_row(row)
-                    if post:
-                        posts.append(post)
-                except Exception as e:
-                    self.logger.warning(f"Error parsing thread row: {e}")
-                    continue
-
-            # Also look for individual posts in thread pages
-            post_containers = soup.find_all("div", id=re.compile(r"post_\d+"))
-
-            for container in post_containers:
-                try:
-                    post = self._parse_post_container(container)
-                    if post:
-                        posts.append(post)
-                except Exception as e:
-                    self.logger.warning(f"Error parsing post container: {e}")
-                    continue
+            # Then try to extract individual post content
+            posts.extend(self._extract_individual_posts(soup))
 
         except Exception as e:
             self.logger.error(f"Error parsing HTML: {e}")
@@ -83,54 +68,82 @@ class HegnarScraper(Scraper):
         self.logger.info(f"Extracted {len(posts)} posts")
         return posts
 
-    def _parse_thread_row(self, row) -> Optional[Post]:
-        """Parse a thread row from the forum index"""
+    def _extract_forum_index_data(self, soup) -> List[Post]:
+        """Extract thread metadata from forum index page"""
+        posts = []
+
         try:
-            # Extract thread ID
-            thread_id = row.get("data-thread")
-            if not thread_id:
+            # Find all thread links
+            thread_links = soup.find_all("a", href=re.compile(r"/thread/\d+/view$"))
+
+            for link in thread_links:
+                try:
+                    post = self._parse_thread_link(link)
+                    if post:
+                        posts.append(post)
+                except Exception as e:
+                    self.logger.warning(f"Error parsing thread link: {e}")
+                    continue
+
+            self.logger.info(f"Extracted {len(posts)} thread metadata posts")
+
+        except Exception as e:
+            self.logger.error(f"Error extracting forum index data: {e}")
+
+        return posts
+
+    def _parse_thread_link(self, link) -> Optional[Post]:
+        """Parse a thread link to extract metadata"""
+        try:
+            # Get thread title
+            title = link.get_text(strip=True)
+            if not title:
                 return None
 
-            # Extract ticker from thread-ticker column
-            ticker_cell = row.find("td", class_="thread-ticker")
+            # Get thread URL
+            href = link.get("href", "")
+            if not href:
+                return None
+
+            # Extract thread ID
+            thread_match = re.search(r"/thread/(\d+)/view", href)
+            thread_id = thread_match.group(1) if thread_match else None
+
+            # Find the parent row to get additional information
+            parent_row = link.find_parent("tr")
+            if not parent_row:
+                return None
+
+            # Extract ticker from the same row
             ticker = None
-            if ticker_cell:
-                ticker_text = ticker_cell.get_text(strip=True)
-                # Extract ticker using regex (common patterns like 3-4 letter codes)
-                ticker_match = re.search(r"\b[A-Z]{2,5}\b", ticker_text)
-                if ticker_match:
-                    ticker = ticker_match.group()
+            ticker_link = parent_row.find("a", href=re.compile(r"/forum/ticker/[A-Z]+"))
+            if ticker_link:
+                ticker_text = ticker_link.get_text(strip=True)
+                ticker_match = re.search(r"\b([A-Z]{3,5})\b", ticker_text)
+                ticker = ticker_match.group(1) if ticker_match else None
 
-            # Extract thread title
-            title_link = row.find("a", class_="thread")
-            title = title_link.get_text(strip=True) if title_link else "No title"
-
-            # Extract author
-            author_cell = row.find("td", class_="thread-nick")
-            author = None
-            if author_cell:
-                author_link = author_cell.find("a")
-                author = (
-                    author_link.get_text(strip=True) if author_link else "Anonymous"
-                )
+            # Extract author from the same row
+            author = "Unknown"
+            author_link = parent_row.find("a", href=re.compile(r"/forum/user/\d+/view"))
+            if author_link:
+                author = author_link.get_text(strip=True)
 
             # Extract post count
-            post_count_link = row.find("a", href=re.compile(r"/view/\d+"))
             post_count = 0
-            if post_count_link:
-                count_text = post_count_link.get_text(strip=True)
-                count_match = re.search(r"\[(\d+)\]", count_text)
+            post_count_element = parent_row.find("span", string=re.compile(r"\d+"))
+            if post_count_element:
+                count_match = re.search(r"(\d+)", post_count_element.get_text())
                 if count_match:
                     post_count = int(count_match.group(1))
 
             # Create post object
             post_url = f"https://www.finansavisen.no/forum/thread/{thread_id}/view"
             post = Post(
-                forum_id=None,  # Will be set by persistence layer
-                author=author or "Anonymous",
+                forum_id=None,
+                author=author,
                 raw_text=title,
-                clean_text=title,  # For now, same as raw_text
-                timestamp=datetime.now(),  # Forum index doesn't show post timestamps
+                clean_text=title,
+                timestamp=datetime.now(),
                 ticker=ticker,
                 url=post_url,
                 post_id=f"thread_{thread_id}",
@@ -144,11 +157,36 @@ class HegnarScraper(Scraper):
             return post
 
         except Exception as e:
-            self.logger.warning(f"Error parsing thread row: {e}")
+            self.logger.warning(f"Error parsing thread link: {e}")
             return None
 
+    def _extract_individual_posts(self, soup) -> List[Post]:
+        """Extract individual post content from thread pages"""
+        posts = []
+
+        try:
+            # Find all post containers
+            post_containers = soup.find_all("div", id=re.compile(r"^post_\d+$"))
+            self.logger.info(f"Found {len(post_containers)} post containers")
+
+            for container in post_containers:
+                try:
+                    post = self._parse_post_container(container)
+                    if post:
+                        posts.append(post)
+                except Exception as e:
+                    self.logger.warning(f"Error parsing post container: {e}")
+                    continue
+
+            self.logger.info(f"Extracted {len(posts)} individual posts")
+
+        except Exception as e:
+            self.logger.error(f"Error extracting individual posts: {e}")
+
+        return posts
+
     def _parse_post_container(self, container) -> Optional[Post]:
-        """Parse an individual post container"""
+        """Parse a single post container to extract post information"""
         try:
             # Extract post ID
             post_id = container.get("id", "").replace("post_", "")
@@ -156,51 +194,68 @@ class HegnarScraper(Scraper):
                 return None
 
             # Extract author
-            author_link = container.find("a", href=re.compile(r"/user/\d+/view"))
-            author = None
-            if author_link:
-                author = author_link.get_text(strip=True)
+            author_link = container.find("a", href=re.compile(r"/forum/user/\d+/view"))
+            author = author_link.get_text(strip=True) if author_link else "Unknown"
+
+            # Extract ticker
+            ticker_link = container.find("a", href=re.compile(r"/forum/ticker/[A-Z]+"))
+            ticker = None
+            if ticker_link:
+                ticker_text = ticker_link.get_text(strip=True)
+                ticker_match = re.search(r"\b([A-Z]{3,5})\b", ticker_text)
+                ticker = ticker_match.group(1) if ticker_match else None
 
             # Extract timestamp
             timestamp = None
-            timestamp_span = container.find(
+            time_element = container.find(
                 "span", string=re.compile(r"\d{2}\.\d{2}\.\d{4}")
             )
-            if timestamp_span:
-                timestamp_text = timestamp_span.get_text(strip=True)
-                try:
-                    # Parse Norwegian timestamp format: "13.08.2025 kl 10:42"
-                    timestamp = datetime.strptime(timestamp_text, "%d.%m.%Y kl %H:%M")
-                except ValueError:
-                    self.logger.warning(f"Could not parse timestamp: {timestamp_text}")
+            if time_element:
+                time_text = time_element.get_text(strip=True)
+                # Parse Norwegian date format: "19.07.2024 kl 16:18"
+                timestamp_match = re.search(r"(\d{2})\.(\d{2})\.(\d{4})", time_text)
+                if timestamp_match:
+                    day, month, year = timestamp_match.groups()
+                    try:
+                        timestamp = datetime(int(year), int(month), int(day))
+                    except ValueError:
+                        timestamp = datetime.now()
 
-            # Extract content
-            content_div = container.find("div", class_="post content")
-            content = None
-            if content_div:
-                content = content_div.get_text(strip=True)
+            # Extract post content
+            content_div = container.find("div", class_="post content text-left")
+            if not content_div:
+                return None
 
-            # Extract ticker from content using regex
-            ticker = None
-            if content:
-                # Look for common ticker patterns in Norwegian text
-                ticker_match = re.search(r"\b[A-Z]{2,5}\b", content)
-                if ticker_match:
-                    ticker = ticker_match.group()
+            # Get the text content, excluding any quoted content
+            content_text = ""
+            for element in content_div.children:
+                if element.name == "blockquote":
+                    # Skip quoted content
+                    continue
+                elif hasattr(element, "get_text"):
+                    content_text += element.get_text()
+                elif hasattr(element, "string") and element.string:
+                    content_text += element.string
+
+            content_text = content_text.strip()
+            if not content_text or len(content_text) < 10:
+                return None
 
             # Create post object
             post = Post(
-                forum_id=None,  # Will be set by persistence layer
-                author=author or "Anonymous",
-                raw_text=content or "No content",
-                clean_text=content or "No content",  # For now, same as raw_text
+                forum_id=None,
+                author=author,
+                raw_text=content_text,
+                clean_text=content_text,
                 timestamp=timestamp or datetime.now(),
                 ticker=ticker,
                 url=f"https://www.finansavisen.no/forum/post/{post_id}",
                 post_id=post_id,
                 metadata={
                     "source": "individual_post",
-                    "container_id": container.get("id"),
+                    "content_length": len(content_text),
+                    "has_ticker": ticker is not None,
+                    "post_level": container.get("data-post-level", "0"),
                 },
             )
 

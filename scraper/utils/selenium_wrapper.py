@@ -148,7 +148,7 @@ class SeleniumWrapper:
     def wait_for_element(
         self,
         selector: str,
-        by: Union[str, "By"] = By.CSS_SELECTOR,
+        by: Union[str, "By"] = None,
         timeout: Optional[int] = None,
     ) -> bool:
         """
@@ -166,6 +166,12 @@ class SeleniumWrapper:
             return False
 
         try:
+            # Use CSS_SELECTOR as default if by is None
+            if by is None and SELENIUM_AVAILABLE:
+                by = By.CSS_SELECTOR
+            elif by is None:
+                by = "css selector"  # Fallback string value
+
             wait_timeout = timeout or self.timeout
             WebDriverWait(self.driver, wait_timeout).until(
                 EC.presence_of_element_located((by, selector))
