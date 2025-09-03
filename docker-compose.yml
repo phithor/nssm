@@ -71,7 +71,7 @@ services:
       - nssm-internal
     volumes:
       - scraper_logs:/app/logs
-      - ./scripts:/app/scripts:ro
+      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-scraper.sh", "cron"]
     restart: unless-stopped
 
@@ -89,7 +89,7 @@ services:
     volumes:
       - analytics_logs:/app/logs
       - analytics_data:/app/data
-      - ./scripts:/app/scripts:ro
+      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-analytics.sh", "cron"]
     restart: unless-stopped
 
@@ -108,17 +108,47 @@ services:
     volumes:
       - market_logs:/app/logs
       - market_cache:/app/cache
-      - ./scripts:/app/scripts:ro
+      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-market.sh", "cron"]
     restart: unless-stopped
 
 volumes:
   scraper_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/user/appdata/nssm/nssm-data/logs/scraper
   nlp_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/user/appdata/nssm/nssm-data/logs/nlp
   analytics_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/user/appdata/nssm/nssm-data/logs/analytics
   analytics_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/user/appdata/nssm/nssm-data/data/analytics
   market_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/user/appdata/nssm/nssm-data/logs/market
   market_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/user/appdata/nssm/nssm-data/cache/market
 
 networks:
   nssm-internal:
