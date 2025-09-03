@@ -1,9 +1,8 @@
 # NLP service Dockerfile
 FROM nssm-base:latest
 
-# Install NLP-specific dependencies
-COPY pyproject.nlp.toml pyproject.toml
-COPY poetry.nlp.lock poetry.lock
+# Copy Poetry files and install NLP dependencies (including heavy ML libraries)
+COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 

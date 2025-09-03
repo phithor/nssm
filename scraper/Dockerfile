@@ -1,9 +1,8 @@
 # Scraper service Dockerfile
 FROM nssm-base:latest
 
-# Install scraper-specific dependencies
-COPY pyproject.scraper.toml pyproject.toml
-COPY poetry.scraper.lock poetry.lock
+# Copy Poetry files and install scraper dependencies
+COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 

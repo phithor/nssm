@@ -1,9 +1,8 @@
 # Analytics service Dockerfile
 FROM nssm-base:latest
 
-# Install analytics-specific dependencies
-COPY pyproject.analytics.toml pyproject.toml
-COPY poetry.analytics.lock poetry.lock
+# Copy Poetry files and install analytics dependencies
+COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 

@@ -65,3 +65,29 @@ docker-compose.yml
 # Documentation
 *.md
 !README.md
+
+# Test files and databases
+*.db
+test_*.py
+tests/
+cypress/
+
+# Large files and caches
+*.tar.gz
+*.zip
+*.rar
+cache/
+logs/
+data/
+
+# Model files (if any)
+*.pkl
+*.joblib
+*.h5
+*.onnx
+models/
+
+# Temporary files
+tmp/
+temp/
+.tmp/

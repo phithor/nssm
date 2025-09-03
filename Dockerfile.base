@@ -18,19 +18,15 @@ RUN pip install poetry
 # Set working directory
 WORKDIR /app
 
-# Copy Poetry files (use minimal version for base image)
-COPY pyproject.minimal.toml pyproject.toml
-COPY poetry.minimal.lock poetry.lock
-
-# Configure Poetry and install minimal dependencies (shared across all services)
-RUN poetry config virtualenvs.create false \
-    && poetry install --only=main --no-root
-
 # Create logs directory
 RUN mkdir -p /app/logs
 
-# Copy only essential shared code
+# Copy only essential shared code (no heavy dependencies)
 COPY db/ ./db/
 COPY scripts/ ./scripts/
 COPY .env* ./
 COPY README.md ./
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1

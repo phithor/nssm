@@ -1,9 +1,8 @@
 # Market service Dockerfile
 FROM nssm-base:latest
 
-# Install market-specific dependencies
-COPY pyproject.market.toml pyproject.toml
-COPY poetry.market.lock poetry.lock
+# Copy Poetry files and install market dependencies (including OpenBB)
+COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 

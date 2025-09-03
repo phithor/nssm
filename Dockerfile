@@ -1,9 +1,8 @@
 # Dashboard service Dockerfile
 FROM nssm-base:latest
 
-# Install dashboard-specific dependencies
-COPY pyproject.dashboard.toml pyproject.toml
-COPY poetry.dashboard.lock poetry.lock
+# Copy Poetry files and install dashboard dependencies
+COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 
