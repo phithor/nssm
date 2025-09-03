@@ -9,23 +9,13 @@ services:
     image: nssm-base:latest
     # This service doesn't run, just builds the base image
 
-  # ML base image (includes PyTorch and Transformers)
-  nssm-ml-base:
-    build:
-      context: .
-      dockerfile: Dockerfile.ml-base
-    image: nssm-ml-base:latest
-    depends_on:
-      - nssm-base
-    # This service doesn't run, just builds the ML base image
-
-  # NLP service (uses ML base image)
+  # NLP service (includes ML dependencies)
   nlp:
     build:
       context: .
       dockerfile: nlp/Dockerfile
     depends_on:
-      - nssm-ml-base
+      - nssm-base
     environment:
       - DATABASE_URL=${DATABASE_URL}
     networks:
