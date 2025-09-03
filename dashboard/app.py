@@ -7,16 +7,16 @@ import os
 import sys
 from datetime import datetime, timedelta
 
+# Add parent directory to path to import modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# Add parent directory to path to import modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 # Import data layer functions
-from .data import (
+from dashboard.data import (
     get_available_tickers,
     get_buzzing_heatmap_data,
     get_dashboard_stats,
