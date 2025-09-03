@@ -9,6 +9,31 @@ services:
     image: nssm-base:latest
     # This service doesn't run, just builds the base image
 
+  # ML base image (includes PyTorch and Transformers)
+  nssm-ml-base:
+    build:
+      context: .
+      dockerfile: Dockerfile.ml-base
+    image: nssm-ml-base:latest
+    depends_on:
+      - nssm-base
+    # This service doesn't run, just builds the ML base image
+
+  # NLP service (uses ML base image)
+  nlp:
+    build:
+      context: .
+      dockerfile: nlp/Dockerfile
+    depends_on:
+      - nssm-ml-base
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - nssm-internal
+    volumes:
+      - nlp_logs:/app/logs
+    restart: unless-stopped
+
   # Dashboard service (external access)
   dashboard:
     build:
@@ -48,21 +73,6 @@ services:
       - scraper_logs:/app/logs
       - ./scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-scraper.sh", "cron"]
-    restart: unless-stopped
-
-  # NLP service
-  nlp:
-    build:
-      context: .
-      dockerfile: nlp/Dockerfile
-    depends_on:
-      - nssm-base
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-    networks:
-      - nssm-internal
-    volumes:
-      - nlp_logs:/app/logs
     restart: unless-stopped
 
   # Analytics service (with cron scheduling)
