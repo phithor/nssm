@@ -18,8 +18,7 @@ services:
       - nssm-base
     environment:
       - DATABASE_URL=${DATABASE_URL}
-    networks:
-      - nssm-internal
+    network_mode: host
     volumes:
       - nlp_logs:/app/logs
       - /mnt/user/appdata/nssm/nssm-data/models:/app/models:ro
@@ -38,8 +37,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
-    networks:
-      - nssm-external
+    network_mode: host
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
       interval: 30s
@@ -58,10 +56,10 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - SCRAPER_INTERVAL_MINUTES=${SCRAPER_INTERVAL_MINUTES:-60}
-    networks:
-      - nssm-internal
+    network_mode: host
     volumes:
       - scraper_logs:/app/logs
+      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-scraper.sh", "cron"]
     restart: unless-stopped
 
@@ -74,11 +72,11 @@ services:
       - nssm-base
     environment:
       - DATABASE_URL=${DATABASE_URL}
-    networks:
-      - nssm-internal
+    network_mode: host
     volumes:
       - analytics_logs:/app/logs
       - analytics_data:/app/data
+      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-analytics.sh", "cron"]
     restart: unless-stopped
 
@@ -92,11 +90,11 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - MARKET_INTERVAL_MINUTES=${MARKET_INTERVAL_MINUTES:-30}
-    networks:
-      - nssm-internal
+    network_mode: host
     volumes:
       - market_logs:/app/logs
       - market_cache:/app/cache
+      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-market.sh", "cron"]
     restart: unless-stopped
 
