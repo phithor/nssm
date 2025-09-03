@@ -2,8 +2,6 @@
 Unit tests for NLP language detection module.
 """
 
-import pytest
-
 from nlp.lang_detect import _analyze_character_patterns, detect_lang
 
 
@@ -12,9 +10,9 @@ class TestDetectLang:
 
     def test_empty_text(self):
         """Test handling of empty or whitespace-only text."""
-        assert detect_lang("") == "no"
-        assert detect_lang("   ") == "no"
-        assert detect_lang("\n\t") == "no"
+        assert detect_lang("") == "en"
+        assert detect_lang("   ") == "en"
+        assert detect_lang("\n\t") == "en"
 
     def test_locale_hint_priority(self):
         """Test that locale_hint takes precedence over text analysis."""
@@ -26,10 +24,29 @@ class TestDetectLang:
         text_with_norwegian = "Jeg elsker programmering"
         assert detect_lang(text_with_norwegian, locale_hint="sv") == "sv"
 
+        # English hint should override any text
+        text_with_norwegian = "Jeg elsker programmering"
+        assert detect_lang(text_with_norwegian, locale_hint="en") == "en"
+
     def test_invalid_locale_hint(self):
         """Test that invalid locale hints are ignored."""
         text_with_norwegian = "Jeg elsker programmering"
         assert detect_lang(text_with_norwegian, locale_hint="invalid") == "no"
+
+    def test_english_detection(self):
+        """Test detection of English text."""
+        english_texts = [
+            "I love programming",
+            "This is a great day",
+            "What are you doing today?",
+            "The quick brown fox jumps over the lazy dog",
+            "I am going to the store to buy milk",
+            "Hello world, how are you?",
+            "The weather is nice today",
+        ]
+
+        for text in english_texts:
+            assert detect_lang(text) == "en", f"Failed to detect English: {text}"
 
     def test_norwegian_detection(self):
         """Test detection of Norwegian text."""

@@ -22,6 +22,7 @@ services:
       - nssm-internal
     volumes:
       - nlp_logs:/app/logs
+      - /mnt/user/appdata/nssm/nssm-data/models:/app/models:ro
     restart: unless-stopped
 
   # Dashboard service (external access)

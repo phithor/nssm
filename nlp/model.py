@@ -17,7 +17,7 @@ from transformers import (
     PreTrainedTokenizer,
 )
 
-# Model configurations for Norwegian and Swedish
+# Model configurations for Norwegian, Swedish, and English
 MODEL_CONFIGS = {
     "no": {
         "model_name": "NbAiLab/nb-bert-base",
@@ -27,6 +27,11 @@ MODEL_CONFIGS = {
     "sv": {
         "model_name": "KBLab/swe-bert-base",
         "description": "Swedish BERT base model for sentiment analysis",
+        "max_length": 512,
+    },
+    "en": {
+        "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "description": "English RoBERTa model for sentiment analysis",
         "max_length": 512,
     },
 }
@@ -42,7 +47,16 @@ class ModelCache:
         Args:
             cache_dir: Custom cache directory for models. Defaults to HF cache.
         """
-        self.cache_dir = cache_dir or Path.home() / ".cache" / "nssm" / "models"
+        # Use mounted models directory in Docker, fallback to default
+        if cache_dir is None:
+            docker_models_dir = Path("/app/models")
+            if docker_models_dir.exists():
+                self.cache_dir = docker_models_dir
+            else:
+                self.cache_dir = Path.home() / ".cache" / "nssm" / "models"
+        else:
+            self.cache_dir = cache_dir
+
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # In-memory cache for loaded models
@@ -88,12 +102,16 @@ class ModelCache:
 
         try:
             tokenizer = AutoTokenizer.from_pretrained(
-                model_name, cache_dir=str(self.cache_dir), use_fast=True
+                model_name,
+                cache_dir=str(self.cache_dir),
+                local_files_only=True,  # Use local models only
+                use_fast=True,
             )
 
             model = AutoModelForSequenceClassification.from_pretrained(
                 model_name,
                 cache_dir=str(self.cache_dir),
+                local_files_only=True,  # Use local models only
                 torch_dtype=(
                     torch.float16 if self._device.type == "cuda" else torch.float32
                 ),

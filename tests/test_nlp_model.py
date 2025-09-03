@@ -5,7 +5,7 @@ Unit tests for NLP model loading and caching module.
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -27,6 +27,7 @@ class TestModelConfigs:
         assert isinstance(MODEL_CONFIGS, dict)
         assert "no" in MODEL_CONFIGS
         assert "sv" in MODEL_CONFIGS
+        assert "en" in MODEL_CONFIGS
 
         for lang, config in MODEL_CONFIGS.items():
             assert "model_name" in config
@@ -47,6 +48,14 @@ class TestModelConfigs:
         config = MODEL_CONFIGS["sv"]
         assert "KBLab/swe-bert-base" in config["model_name"]
         assert "Swedish" in config["description"]
+
+    def test_english_config(self):
+        """Test English model configuration."""
+        config = MODEL_CONFIGS["en"]
+        assert (
+            "cardiffnlp/twitter-roberta-base-sentiment-latest" in config["model_name"]
+        )
+        assert "English" in config["description"]
 
 
 class TestModelCache:

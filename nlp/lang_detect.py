@@ -7,7 +7,6 @@ and character-level patterns.
 """
 
 import re
-from collections import Counter
 from typing import Optional
 
 
@@ -17,23 +16,130 @@ def detect_lang(text: str, locale_hint: Optional[str] = None) -> str:
 
     Args:
         text: The text content to analyze
-        locale_hint: Optional hint from forum locale ('no' or 'sv')
+        locale_hint: Optional hint from forum locale ('no', 'sv', or 'en')
 
     Returns:
-        'no' for Norwegian or 'sv' for Swedish
+        'no' for Norwegian, 'sv' for Swedish, or 'en' for English
 
     The function first checks the locale_hint, then falls back to character
-    bigram frequency analysis to distinguish between Norwegian and Swedish.
+    bigram frequency analysis to distinguish between Norwegian, Swedish, and English.
     """
     if not text or not text.strip():
-        return "no"  # Default fallback
+        return "en"  # Default fallback to English
 
     # Step 1: Use locale hint if available and valid
-    if locale_hint in ("no", "sv"):
+    if locale_hint in ("no", "sv", "en"):
         return locale_hint
 
-    # Step 2: Character-level analysis
+    # Step 2: Check for English patterns first
+    if _is_english(text):
+        return "en"
+
+    # Step 3: Character-level analysis for Scandinavian languages
     return _analyze_character_patterns(text)
+
+
+def _is_english(text: str) -> bool:
+    """
+    Check if text is likely English based on common patterns.
+
+    Args:
+        text: The text to analyze
+
+    Returns:
+        True if text appears to be English
+    """
+    text = text.lower()
+
+    # Common English words that are unlikely in Scandinavian languages
+    english_words = [
+        "the",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "up",
+        "about",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "among",
+        "within",
+        "without",
+        "against",
+        "toward",
+        "towards",
+        "upon",
+        "since",
+        "until",
+        "while",
+        "where",
+        "when",
+        "why",
+        "how",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "this",
+        "that",
+        "these",
+        "those",
+        "is",
+        "are",
+        "was",
+        "were",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "might",
+        "may",
+        "can",
+        "must",
+        "shall",
+    ]
+
+    # Count English words
+    english_count = sum(1 for word in english_words if word in text)
+
+    # Check for English-specific patterns
+    english_patterns = [
+        r"\bthe\b",  # Definite article
+        r"\band\b",  # Conjunction
+        r"\bor\b",  # Conjunction
+        r"\bwith\b",  # Preposition
+        r"\bfor\b",  # Preposition
+        r"\bof\b",  # Preposition
+        r"\bto\b",  # Preposition
+        r"\bin\b",  # Preposition
+        r"\bon\b",  # Preposition
+        r"\bat\b",  # Preposition
+    ]
+
+    pattern_count = sum(1 for pattern in english_patterns if re.search(pattern, text))
+
+    # If we find many English words or patterns, it's likely English
+    return english_count >= 3 or pattern_count >= 5
 
 
 def _analyze_character_patterns(text: str) -> str:
