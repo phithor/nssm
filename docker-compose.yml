@@ -62,7 +62,6 @@ services:
       - nssm-internal
     volumes:
       - scraper_logs:/app/logs
-      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-scraper.sh", "cron"]
     restart: unless-stopped
 
@@ -80,7 +79,6 @@ services:
     volumes:
       - analytics_logs:/app/logs
       - analytics_data:/app/data
-      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-analytics.sh", "cron"]
     restart: unless-stopped
 
@@ -99,7 +97,6 @@ services:
     volumes:
       - market_logs:/app/logs
       - market_cache:/app/cache
-      - /mnt/user/appdata/nssm/nssm-data/scripts:/app/scripts:ro
     command: ["/app/scripts/entrypoint-market.sh", "cron"]
     restart: unless-stopped
 
