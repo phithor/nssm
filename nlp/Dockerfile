@@ -2,7 +2,8 @@
 FROM nssm-base:latest
 
 # Copy Poetry files and install NLP dependencies (including heavy ML libraries)
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.nlp.toml pyproject.toml
+COPY poetry.nlp.lock poetry.lock
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 

@@ -2,7 +2,8 @@
 FROM nssm-base:latest
 
 # Copy Poetry files and install scraper dependencies
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.scraper.toml pyproject.toml
+COPY poetry.scraper.lock poetry.lock
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 

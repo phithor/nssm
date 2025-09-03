@@ -2,7 +2,8 @@
 FROM nssm-base:latest
 
 # Copy Poetry files and install analytics dependencies
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.analytics.toml pyproject.toml
+COPY poetry.analytics.lock poetry.lock
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 

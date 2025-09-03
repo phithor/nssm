@@ -2,7 +2,8 @@
 FROM nssm-base:latest
 
 # Copy Poetry files and install dashboard dependencies
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.dashboard.toml pyproject.toml
+COPY poetry.dashboard.lock poetry.lock
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 
