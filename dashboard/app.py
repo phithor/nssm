@@ -77,9 +77,9 @@ def main():
 
         # Initialize session state for filters
         if "start_date" not in st.session_state:
-            st.session_state.start_date = datetime.now() - timedelta(days=7)
+            st.session_state.start_date = datetime.now().date() - timedelta(days=7)
         if "end_date" not in st.session_state:
-            st.session_state.end_date = datetime.now()
+            st.session_state.end_date = datetime.now().date()
         if "selected_tickers" not in st.session_state:
             st.session_state.selected_tickers = []
         if "anomaly_threshold" not in st.session_state:
@@ -222,7 +222,7 @@ def main():
         st.markdown("### 📈 Performance")
         st.metric(
             "Session Active",
-            f"{(datetime.now() - st.session_state.start_date).days} days",
+            f"{(datetime.now().date() - st.session_state.start_date).days} days",
         )
         st.metric("Data Freshness", "Real-time")
 
