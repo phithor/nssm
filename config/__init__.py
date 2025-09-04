@@ -33,7 +33,7 @@ def load_markets_config() -> Dict[str, Any]:
 
 def get_database_url() -> str:
     """Get database URL from environment variables."""
-    return os.getenv("DATABASE_URL", "mysql+pymysql://nssm:MLxWMB/@/WiFA/Lq@192.168.0.90:3306/nssm")
+    return os.getenv("DATABASE_URL", "mysql+pymysql://nssm:MLxWMB%2F%40%2FWiFA%2FLq@192.168.0.90:3306/nssm")
 
 
 def get_openbb_api_key() -> Optional[str]:

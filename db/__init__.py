@@ -19,7 +19,7 @@ __author__ = "NSSM Team"
 
 # Database configuration - supports both PostgreSQL and MySQL/MariaDB
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", "mysql+pymysql://nssm:MLxWMB/@/WiFA/Lq@192.168.0.90:3306/nssm"
+    "DATABASE_URL", "mysql+pymysql://nssm:MLxWMB%2F%40%2FWiFA%2FLq@192.168.0.90:3306/nssm"
 )
 
 # Create SQLAlchemy engine
