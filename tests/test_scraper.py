@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from scraper.avanza import AvanzaScraper
+from scraper.avanza import PlaceraScraper
 from scraper.base import Scraper
 from scraper.hegnar import HegnarScraper
 from scraper.persistence import ScraperPersistence
@@ -87,20 +87,18 @@ class TestHegnarScraper:
             assert result == "<html>test</html>"
 
 
-class TestAvanzaScraper:
-    """Test Avanza/Placera scraper."""
+class TestPlaceraScraper:
+    """Test Placera forum scraper functionality"""
 
-    def test_avanza_scraper_initialization(self):
-        """Test Avanza scraper initialization."""
-        scraper = AvanzaScraper()
-        assert scraper.base_url == "https://www.avanza.se"
+    def test_initialization(self):
+        """Test scraper initialization"""
+        scraper = PlaceraScraper()
+        assert scraper is not None
+        assert scraper.base_url == "https://forum.placera.se"
 
-    @patch("scraper.avanza.check_robots_txt")
-    @patch("scraper.avanza.polite_delay")
-    def test_fetch_method(self, mock_delay, mock_robots):
-        """Test fetch method with mocked dependencies."""
-        mock_robots.return_value = True
-        scraper = AvanzaScraper()
+    def test_fetch_method(self):
+        """Test fetch method"""
+        scraper = PlaceraScraper()
         # Mock the session response
         with patch.object(scraper.session, "get") as mock_get:
             mock_response = Mock()

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from db import SessionLocal
 from db.models import Forum, Post
 
-from .avanza import AvanzaScraper
+from .avanza import PlaceraScraper
 from .hegnar import HegnarScraper
 
 
@@ -23,7 +23,32 @@ class ScraperPersistence:
     def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.hegnar_scraper = HegnarScraper()
-        self.avanza_scraper = AvanzaScraper()
+        self.avanza_scraper = PlaceraScraper()
+
+    def __enter__(self):
+        """Context manager entry"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit"""
+        # Clean up if needed
+        pass
+
+    def get_post_count_by_forum(self) -> Dict[str, int]:
+        """Get post count by forum name"""
+        try:
+            with SessionLocal() as session:
+                forum_counts = (
+                    session.query(Forum.name, Forum.id, Post.id)
+                    .join(Post, Forum.id == Post.forum_id)
+                    .group_by(Forum.name, Forum.id)
+                    .all()
+                )
+
+                return {name: count for name, forum_id, count in forum_counts}
+        except Exception as e:
+            self.logger.error(f"Error getting post count by forum: {e}")
+            return {}
 
     def get_forum_id(self, forum_name: str) -> Optional[int]:
         """Get forum ID by name"""
@@ -152,15 +177,15 @@ class ScraperPersistence:
             self.logger.error(f"Error scraping Hegnar forum: {e}")
             return {"success": False, "error": str(e)}
 
-    def scrape_and_store_avanza(self, max_posts: int = 50) -> Dict[str, any]:
-        """Scrape Placera forum (Avanza replacement) and store posts"""
+    def scrape_and_store_placera(self, max_posts: int = 50) -> Dict[str, any]:
+        """Scrape Placera forum and store posts"""
         try:
             self.logger.info("Starting Placera forum scraping")
 
             # Get forum ID
-            forum_id = self.get_forum_id("Avanza Forum")
+            forum_id = self.get_forum_id("Placera Forum")
             if not forum_id:
-                self.logger.error("Avanza Forum not found in database")
+                self.logger.error("Placera Forum not found in database")
                 return {"success": False, "error": "Forum not found"}
 
             # Scrape forum feed
@@ -202,8 +227,8 @@ class ScraperPersistence:
             results["hegnar"] = hegnar_result
 
             # Scrape Placera
-            avanza_result = self.scrape_and_store_avanza(max_posts)
-            results["placera"] = avanza_result
+            placera_result = self.scrape_and_store_placera(max_posts)
+            results["placera"] = placera_result
 
             # Summary
             total_posts = sum(

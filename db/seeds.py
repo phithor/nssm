@@ -17,7 +17,7 @@ def seed_forums():
         {"name": "Seeking Alpha", "url": "https://seekingalpha.com"},
         {"name": "Yahoo Finance", "url": "https://finance.yahoo.com"},
         {"name": "Hegnar Online", "url": "https://www.finansavisen.no/forum/"},
-        {"name": "Avanza Forum", "url": "https://forum.placera.se/upptack"},
+        {"name": "Placera Forum", "url": "https://forum.placera.se/upptack"},
     ]
 
     db = SessionLocal()

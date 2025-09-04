@@ -1,8 +1,9 @@
 """
-Avanza Forum Scraper with Selenium Fallback
+Placera Forum Scraper for Swedish Financial Forums
 
-Scrapes posts from Avanza Forum (https://www.avanza.se) using requests+BeautifulSoup
-with automatic fallback to Selenium when JavaScript rendering is required.
+Scrapes posts from Placera Forum (https://forum.placera.se)
+using requests+BeautifulSoup with automatic fallback to Selenium when
+JavaScript rendering is required.
 """
 
 import logging
@@ -22,23 +23,23 @@ from .utils.robots import check_robots_txt
 from .utils.selenium_wrapper import SeleniumWrapper
 
 
-class AvanzaScraper(Scraper):
+class PlaceraScraper(Scraper):
     """
-    Scraper for Avanza Forum with Selenium fallback.
+    Scraper for Placera Forum with Selenium fallback.
 
-    Avanza is a Swedish financial services company with active forums
-    for stock discussions. Some content requires JavaScript rendering.
+    Scrapes posts from https://forum.placera.se with automatic detection
+    and appropriate selectors for the platform.
     """
 
     def __init__(self, use_selenium_fallback: bool = True):
         """
-        Initialize Avanza scraper with configuration.
+        Initialize scraper with configuration.
 
         Args:
             use_selenium_fallback: Whether to use Selenium as fallback
         """
         super().__init__(
-            base_url="https://www.avanza.se",
+            base_url="https://forum.placera.se",
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         )
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
@@ -47,12 +48,14 @@ class AvanzaScraper(Scraper):
         # Ticker regex pattern for Swedish stocks
         self.ticker_pattern = re.compile(r"\b[A-Z]{2,4}\b")
 
-        # Forum-specific selectors for Avanza
+        # Placera Forum selectors
         self.selectors = {
-            "post_container": ".forum-post, .post, .message, .thread-post",
-            "author": ".author, .username, .user, .poster",
-            "timestamp": ".timestamp, .date, .time, .post-date",
-            "content": ".content, .message-text, .post-text, .post-content",
+            "post_container": "article.post-card",
+            "author": "a[data-testid='author-name']",
+            "ticker": "a[data-testid='destination-label']",
+            "title": "h3",
+            "content": "div.post-body",
+            "timestamp": "span",
             "pagination": ".pagination, .pages, .page-nav",
         }
 
@@ -63,7 +66,7 @@ class AvanzaScraper(Scraper):
 
     def fetch(self, url: str, **kwargs) -> Optional[str]:
         """
-        Fetch content from Avanza forum pages with automatic fallback.
+        Fetch content from Placera forum pages with automatic fallback.
 
         Args:
             url: URL to fetch
@@ -174,12 +177,13 @@ class AvanzaScraper(Scraper):
 
         return False
 
-    def parse(self, html: str) -> List[Post]:
+    def parse(self, html: str, url: str = None) -> List[Post]:
         """
         Parse HTML content and extract forum posts.
 
         Args:
             html: HTML content to parse
+            url: URL of the page being parsed (for context)
 
         Returns:
             List of Post objects extracted from the HTML
@@ -235,6 +239,14 @@ class AvanzaScraper(Scraper):
             author_elem = container.select_one(self.selectors["author"])
             author = author_elem.get_text(strip=True) if author_elem else "Unknown"
 
+            # Extract ticker/company from destination label
+            ticker_elem = container.select_one(self.selectors["ticker"])
+            ticker = ticker_elem.get_text(strip=True) if ticker_elem else None
+
+            # Extract title
+            title_elem = container.select_one(self.selectors["title"])
+            title = title_elem.get_text(strip=True) if title_elem else "No title"
+
             # Extract timestamp
             timestamp_elem = container.select_one(self.selectors["timestamp"])
             timestamp = (
@@ -252,14 +264,14 @@ class AvanzaScraper(Scraper):
             if not raw_text:
                 return None
 
-            # Extract ticker symbols
-            tickers = self._extract_tickers(raw_text)
-            if not tickers:
-                # Skip posts without ticker mentions
-                return None
-
-            # Use the first ticker found (could be enhanced to handle multiple)
-            ticker = tickers[0]
+            # Use ticker from destination label if available, otherwise extract
+            # from text
+            if not ticker:
+                tickers = self._extract_tickers(raw_text)
+                if not tickers:
+                    # Skip posts without ticker mentions
+                    return None
+                ticker = tickers[0]
 
             # Create post object
             post = Post(
@@ -272,7 +284,8 @@ class AvanzaScraper(Scraper):
                 url=None,  # No direct URL for individual posts in this scraper
                 post_id=None,  # No direct post ID for individual posts in this scraper
                 metadata={
-                    "source": "avanza_forum",
+                    "source": "placera_forum",
+                    "title": title,
                     "container_class": container.get("class", []),
                 },
             )
@@ -431,7 +444,7 @@ class AvanzaScraper(Scraper):
 
             html = self.fetch(url)
             if html:
-                posts = self.parse(html)
+                posts = self.parse(html, url)
                 # Limit posts if needed
                 if max_posts and len(posts) > max_posts:
                     posts = posts[:max_posts]
@@ -443,6 +456,198 @@ class AvanzaScraper(Scraper):
         except Exception as e:
             self.logger.error(f"Error scraping forum feed: {e}")
             return []
+
+    def extract_sidebar_data(self, html: str) -> dict:
+        """
+        Extract sidebar data including popular posts, companies, and groups.
+
+        Args:
+            html: HTML content to parse
+
+        Returns:
+            Dictionary containing sidebar data
+        """
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+            sidebar_data = {
+                "popular_posts": [],
+                "popular_companies": [],
+                "popular_groups": [],
+                "popular_members": [],
+            }
+
+            # Extract popular posts - look for h3 containing "Populära inlägg"
+            popular_posts_section = soup.find(
+                "h3", string=lambda text: text and "Populära inlägg" in text
+            )
+            if popular_posts_section:
+                # Find the parent container
+                container = popular_posts_section.find_parent(
+                    "div", class_=lambda x: x and "bg-surface-primary" in x
+                )
+                if container:
+                    post_links = container.find_all(
+                        "a", href=lambda href: href and "/inlagg/" in href
+                    )
+                    for link in post_links:
+                        title_elem = link.find("h4")
+                        if title_elem:
+                            title = title_elem.get_text(strip=True)
+                            # Look for comment count in the same link
+                            comment_text = link.get_text()
+                            import re
+
+                            comment_match = re.search(r"(\d+)", comment_text)
+                            comment_count = (
+                                comment_match.group(1) if comment_match else "0"
+                            )
+                            sidebar_data["popular_posts"].append(
+                                {
+                                    "title": title,
+                                    "url": link.get("href", ""),
+                                    "comment_count": comment_count,
+                                }
+                            )
+
+            # Extract popular companies - look for h3 containing "Populära bolag"
+            popular_companies_section = soup.find(
+                "h3", string=lambda text: text and "Populära bolag" in text
+            )
+            if popular_companies_section:
+                container = popular_companies_section.find_parent(
+                    "div", class_=lambda x: x and "bg-surface-primary" in x
+                )
+                if container:
+                    company_links = container.find_all(
+                        "a", href=lambda href: href and "/bolag/" in href
+                    )
+                    for link in company_links:
+                        name_elem = link.find("h4")
+                        if name_elem:
+                            name = name_elem.get_text(strip=True)
+                            # Look for follower count in the same link
+                            follower_text = link.get_text()
+                            import re
+
+                            follower_match = re.search(r"(\d+)", follower_text)
+                            follower_count = (
+                                follower_match.group(1) if follower_match else "0"
+                            )
+                            sidebar_data["popular_companies"].append(
+                                {
+                                    "name": name,
+                                    "url": link.get("href", ""),
+                                    "follower_count": follower_count,
+                                }
+                            )
+
+            # Extract popular groups - look for h3 containing "Grupper"
+            popular_groups_section = soup.find(
+                "h3", string=lambda text: text and "Grupper" in text
+            )
+            if popular_groups_section:
+                container = popular_groups_section.find_parent(
+                    "div", class_=lambda x: x and "bg-surface-primary" in x
+                )
+                if container:
+                    group_links = container.find_all(
+                        "a", href=lambda href: href and "/grupp/" in href
+                    )
+                    for link in group_links:
+                        name_elem = link.find("h4")
+                        if name_elem:
+                            name = name_elem.get_text(strip=True)
+                            # Look for follower count in the same link
+                            follower_text = link.get_text()
+                            import re
+
+                            follower_match = re.search(r"(\d+)", follower_text)
+                            follower_count = (
+                                follower_match.group(1) if follower_match else "0"
+                            )
+                            sidebar_data["popular_groups"].append(
+                                {
+                                    "name": name,
+                                    "url": link.get("href", ""),
+                                    "follower_count": follower_count,
+                                }
+                            )
+
+            # Extract popular members - look for h3 containing "Mest följda"
+            popular_members_section = soup.find(
+                "h3", string=lambda text: text and "Mest följda" in text
+            )
+            if popular_members_section:
+                container = popular_members_section.find_parent(
+                    "div", class_=lambda x: x and "bg-surface-primary" in x
+                )
+                if container:
+                    member_links = container.find_all(
+                        "a", href=lambda href: href and "/medlem/" in href
+                    )
+                    for link in member_links:
+                        name_elem = link.find("h4")
+                        if name_elem:
+                            name = name_elem.get_text(strip=True)
+                            # Look for follower count in the same link
+                            follower_text = link.get_text()
+                            import re
+
+                            follower_match = re.search(r"(\d+)", follower_text)
+                            follower_count = (
+                                follower_match.group(1) if follower_match else "0"
+                            )
+                            sidebar_data["popular_members"].append(
+                                {
+                                    "name": name,
+                                    "url": link.get("href", ""),
+                                    "follower_count": follower_count,
+                                }
+                            )
+
+            return sidebar_data
+
+        except Exception as e:
+            self.logger.error(f"Error extracting sidebar data: {e}")
+            return {
+                "popular_posts": [],
+                "popular_companies": [],
+                "popular_groups": [],
+                "popular_members": [],
+            }
+
+    def scrape_forum_with_sidebar(self, url: str, max_posts: int = 50) -> dict:
+        """
+        Scrape forum page with both posts and sidebar data.
+
+        Args:
+            url: URL of the forum page to scrape
+            max_posts: Maximum number of posts to extract
+
+        Returns:
+            Dictionary containing posts and sidebar data
+        """
+        try:
+            self.logger.info(f"Scraping forum with sidebar: {url}")
+
+            html = self.fetch(url)
+            if not html:
+                self.logger.warning("Failed to fetch forum page")
+                return {"posts": [], "sidebar": {}}
+
+            # Extract posts
+            posts = self.parse(html, url)
+            if max_posts and len(posts) > max_posts:
+                posts = posts[:max_posts]
+
+            # Extract sidebar data
+            sidebar_data = self.extract_sidebar_data(html)
+
+            return {"posts": posts, "sidebar": sidebar_data}
+
+        except Exception as e:
+            self.logger.error(f"Error scraping forum with sidebar: {e}")
+            return {"posts": [], "sidebar": {}}
 
     def close(self):
         """Close resources including Selenium wrapper."""
