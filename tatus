@@ -1,5 +1,0 @@
-[33m6b97cc2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m feat: complete Oslo Børs NewsWeb integration with Selenium
-[33m4ff42db[m refactor: remove Avanza forum support, focus only on Placera forum
-[33mf1677b7[m fix: Add missing schedule dependency to scraper
-[33me1482d1[m[33m ([m[1;31morigin/master[m[33m)[m fix: Use host network mode for all services to access MariaDB
-[33m7cd3848[m fix: Update database fallback URLs to use MariaDB configuration
