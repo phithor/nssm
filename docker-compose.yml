@@ -38,8 +38,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
-    networks:
-      - nssm-external
+    network_mode: host
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
       interval: 30s
