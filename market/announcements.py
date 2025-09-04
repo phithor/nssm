@@ -6,13 +6,10 @@ This module fetches company announcements and filings from Nordic exchanges:
 - Nasdaq OMX Nordic RSS feeds
 """
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin
+from typing import Any, Dict, List
 
-import feedparser
 import pytz
 import requests
 from sqlalchemy import create_engine, select
@@ -66,42 +63,76 @@ class NordicAnnouncementsFetcher:
     def fetch_oslo_bors_newsweb(
         self, issuer_id: str, days_back: int = 7
     ) -> List[Dict[str, Any]]:
-        """Fetch announcements from Oslo Børs NewsWeb API."""
+        """Fetch announcements from Oslo Børs NewsWeb using Selenium scraper."""
         announcements = []
 
         try:
-            base_url = self.markets_config["exchanges"]["OSE"]["newsweb_url"]
-            from_date = (
-                datetime.now(self.oslo_tz) - timedelta(days=days_back)
-            ).strftime("%Y-%m-%d")
+            # Import the Oslo Børs scraper
+            from scraper.oslobors import OsloBorsScraper
 
-            url = f"{base_url}/news"
-            params = {"issuerId": issuer_id, "from": from_date, "lang": "en"}
+            # Initialize the scraper
+            scraper = OsloBorsScraper()
 
-            response = self.session.get(url, params=params)
-            response.raise_for_status()
+            # Search for announcements for the specific issuer
+            raw_announcements = scraper.search_announcements(issuer_id=issuer_id)
 
-            data = response.json()
+            # Filter by date if needed
+            cutoff_date = datetime.now(self.oslo_tz) - timedelta(days=days_back)
 
-            for item in data.get("news", []):
-                published_at = self._normalize_datetime(item.get("publishDate", ""))
+            for item in raw_announcements:
+                # Parse the date from the announcement
+                try:
+                    if item.get("parsed_date"):
+                        published_at = item["parsed_date"]
+                        if published_at.tzinfo is None:
+                            published_at = self.oslo_tz.localize(published_at)
+                    else:
+                        # Parse the date string
+                        date_str = item.get("date_time", "")
+                        published_at = datetime.strptime(date_str, "%d.%m.%Y %H:%M")
+                        published_at = self.oslo_tz.localize(published_at)
+                except Exception as e:
+                    logger.warning(f"Failed to parse date for announcement: {e}")
+                    published_at = datetime.now(self.oslo_tz)
+
+                # Skip if too old
+                if published_at < cutoff_date:
+                    continue
+
+                # Get detailed information if available
+                details = None
+                if item.get("url"):
+                    try:
+                        details = scraper.fetch_announcement_details(item["url"])
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to fetch details for {item['url']}: {e}"
+                        )
 
                 announcement = {
-                    "ticker": issuer_id,  # Using issuer ID as ticker for now
-                    "headline": item.get("headline", ""),
-                    "summary": item.get("lead", ""),
-                    "body_html": item.get("body", ""),
+                    "ticker": issuer_id,
+                    "headline": item.get("title", ""),
+                    "summary": (
+                        details.get("content", "")[:500] if details else ""
+                    ),  # First 500 chars as summary
+                    "body_html": details.get("content", "") if details else "",
                     "link": item.get("url", ""),
                     "published_at": published_at,
                     "source": "oslobors",
                     "category": "filing",
                     "importance": 1.0,  # Company filings are important
+                    "market": item.get("market", ""),
+                    "category_detail": item.get("category", ""),
+                    "attachments_count": item.get("attachments_count", 0),
+                    "message_id": details.get("MessageID", "") if details else "",
+                    "issuer_name": details.get("issuer_name", "") if details else "",
                 }
 
                 announcements.append(announcement)
 
             logger.info(
-                f"Fetched {len(announcements)} announcements from Oslo Børs for {issuer_id}"
+                f"Fetched {len(announcements)} announcements from Oslo Børs for "
+                f"{issuer_id}"
             )
 
         except Exception as e:
@@ -114,41 +145,11 @@ class NordicAnnouncementsFetcher:
         announcements = []
 
         try:
-            base_url = self.markets_config["exchanges"][exchange]["rss_url"]
-            rss_url = f"{base_url}/NewsRelease?Instrument={ric}"
-
-            feed = feedparser.parse(rss_url)
-
-            for entry in feed.entries:
-                published_at = self._normalize_datetime(
-                    entry.get("published", entry.get("updated", "")),
-                    self.markets_config["exchanges"][exchange]["timezone"],
-                )
-
-                # Extract RIC from entry or use provided one
-                ticker = entry.get("ric", ric.split(".")[0])
-
-                announcement = {
-                    "ticker": ticker,
-                    "headline": entry.get("title", ""),
-                    "summary": entry.get("summary", ""),
-                    "body_html": (
-                        entry.get("content", [{}])[0].get("value", "")
-                        if entry.get("content")
-                        else ""
-                    ),
-                    "link": entry.get("link", ""),
-                    "published_at": published_at,
-                    "source": "nasdaq",
-                    "category": "filing",
-                    "importance": 1.0,
-                }
-
-                announcements.append(announcement)
-
-            logger.info(
-                f"Fetched {len(announcements)} RSS announcements from {exchange} for {ric}"
+            # RSS fetching is deprecated and not implemented
+            logger.warning(
+                f"RSS fetching for {exchange} is deprecated and not implemented."
             )
+            return []
 
         except Exception as e:
             logger.error(f"Error fetching Nasdaq RSS announcements for {ric}: {e}")
@@ -210,49 +211,57 @@ class NordicAnnouncementsFetcher:
         return stored_count
 
     async def fetch_and_store_announcements(self, days_back: int = 7) -> Dict[str, int]:
-        """Fetch announcements from all Nordic exchanges and store them."""
-        results = {}
+        """Fetch and store announcements from all configured sources."""
+        total_stored = 0
+        errors = []
 
-        # Oslo Børs NewsWeb - fetch for major companies
-        oslo_companies = [
-            ("EQNR", "equinor"),  # Example issuer IDs - would need actual mapping
-            ("TEL", "telenor"),
-            ("DNB", "dnb"),
-        ]
+        # Get configured exchanges and their tickers
+        exchanges = self.markets_config.get("exchanges", {})
 
-        for ticker, issuer_id in oslo_companies:
-            announcements = self.fetch_oslo_bors_newsweb(issuer_id, days_back)
-            stored_count = self.store_announcements_batch(announcements)
-            results[f"{ticker}_oslobors"] = stored_count
-            logger.info(f"Stored {stored_count} Oslo Børs announcements for {ticker}")
+        for exchange_id, exchange_config in exchanges.items():
+            try:
+                tickers = exchange_config.get("tickers", [])
+                if not tickers:
+                    continue
 
-        # Nasdaq OMX Nordic RSS feeds
-        nasdaq_exchanges = ["STO", "CPH", "HEX"]
-        major_tickers = [
-            "VOLV-B.ST",
-            "ERIC-B.ST",
-            "HM-B.ST",  # Stockholm
-            "NOVO-B.CO",
-            "DANSKE.CO",  # Copenhagen
-            "NOKIA.HE",
-            "NESTE.HE",  # Helsinki
-        ]
+                logger.info(f"Processing {len(tickers)} tickers for {exchange_id}")
 
-        for ric in major_tickers:
-            exchange = ric.split(".")[-1]
-            if exchange in ["ST", "CO", "HE"]:
-                exchange_map = {"ST": "STO", "CO": "CPH", "HE": "HEX"}
-                exchange_name = exchange_map[exchange]
+                for ticker in tickers:
+                    try:
+                        # Fetch announcements based on exchange type
+                        if exchange_id == "OSE":
+                            announcements = self.fetch_oslo_bors_newsweb(
+                                ticker, days_back
+                            )
+                        else:
+                            # For other exchanges, use RSS (if implemented)
+                            announcements = self.fetch_nasdaq_nordic_rss(
+                                exchange_id, ticker
+                            )
 
-                announcements = self.fetch_nasdaq_nordic_rss(exchange_name, ric)
-                stored_count = self.store_announcements_batch(announcements)
-                results[f"{ric}_nasdaq"] = stored_count
-                logger.info(f"Stored {stored_count} Nasdaq RSS announcements for {ric}")
+                        if announcements:
+                            stored_count = self.store_announcements_batch(announcements)
+                            total_stored += stored_count
+                            logger.info(
+                                f"Stored {stored_count} announcements for {ticker} "
+                                f"from {exchange_id}"
+                            )
 
-        total_stored = sum(results.values())
+                    except Exception as e:
+                        error_msg = f"Error processing {ticker} from {exchange_id}: {e}"
+                        logger.error(error_msg)
+                        errors.append(error_msg)
+
+            except Exception as e:
+                error_msg = f"Error processing exchange {exchange_id}: {e}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+
         logger.info(f"Total announcements stored: {total_stored}")
+        if errors:
+            logger.warning(f"Encountered {len(errors)} errors during processing")
 
-        return results
+        return {"stored": total_stored, "errors": len(errors)}
 
 
 async def fetch_nordic_announcements(db_url: str, days_back: int = 7) -> Dict[str, int]:
