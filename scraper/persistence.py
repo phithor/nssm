@@ -15,6 +15,7 @@ from db.models import Forum, Post
 
 from .avanza import PlaceraScraper
 from .hegnar import HegnarScraper
+from .nordnet import NordnetScraper
 
 
 class ScraperPersistence:
@@ -24,6 +25,7 @@ class ScraperPersistence:
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.hegnar_scraper = HegnarScraper()
         self.avanza_scraper = PlaceraScraper()
+        self.nordnet_scraper = NordnetScraper()
 
     def __enter__(self):
         """Context manager entry"""
@@ -213,6 +215,56 @@ class ScraperPersistence:
             self.logger.error(f"Error scraping Placera forum: {e}")
             return {"success": False, "error": str(e)}
 
+    def scrape_and_store_nordnet(
+        self, ticker: str = None, max_pages: int = 5
+    ) -> Dict[str, any]:
+        """Scrape Nordnet Shareville forum and store posts for a specific ticker or all stocks"""
+        try:
+            if ticker:
+                self.logger.info(
+                    f"Starting Nordnet Shareville scraping for ticker {ticker}"
+                )
+            else:
+                self.logger.info("Starting Nordnet Shareville scraping for all stocks")
+
+            # Get forum ID
+            forum_id = self.get_forum_id("Nordnet Shareville")
+            if not forum_id:
+                self.logger.error("Nordnet Shareville forum not found in database")
+                return {"success": False, "error": "Forum not found"}
+
+            # Scrape posts
+            if ticker:
+                posts = self.nordnet_scraper.scrape_ticker_posts(ticker, max_pages)
+            else:
+                posts = self.nordnet_scraper.scrape_all_posts(max_pages)
+
+            if not posts:
+                ticker_msg = f" for {ticker}" if ticker else ""
+                self.logger.warning(
+                    f"No posts found from Nordnet Shareville{ticker_msg}"
+                )
+                return {"success": True, "posts_found": 0, "posts_stored": 0}
+
+            # Set forum ID for all posts
+            for post in posts:
+                post.forum_id = forum_id
+
+            # Store posts
+            stored_count = self.upsert_posts(posts)
+
+            return {
+                "success": True,
+                "posts_found": len(posts),
+                "posts_stored": stored_count,
+                "forum": "Nordnet Shareville",
+                "ticker": ticker or "all",
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error scraping Nordnet Shareville forum: {e}")
+            return {"success": False, "error": str(e)}
+
     def scrape_all_forums(
         self, max_pages: int = 5, max_posts: int = 50
     ) -> Dict[str, any]:
@@ -229,6 +281,10 @@ class ScraperPersistence:
             # Scrape Placera
             placera_result = self.scrape_and_store_placera(max_posts)
             results["placera"] = placera_result
+
+            # Scrape Nordnet Shareville for all stocks
+            nordnet_result = self.scrape_and_store_nordnet(max_pages=max_pages)
+            results["nordnet"] = nordnet_result
 
             # Summary
             total_posts = sum(
