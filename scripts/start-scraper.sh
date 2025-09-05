@@ -40,6 +40,7 @@ seed_database() {
     python -c "
 from db.init_db import init_database
 try:
+    # Only seed if tables don't exist (migrations handle table creation)
     init_database()
     print('Database seeded successfully')
 except Exception as e:
@@ -64,8 +65,8 @@ done
 # Run migrations
 run_migrations
 
-# Seed database
-seed_database
+# Skip seeding - migrations handle table creation
+echo "Skipping database seeding (migrations handle table creation)"
 
 echo "Starting scraper service..."
 exec python -m scraper run
