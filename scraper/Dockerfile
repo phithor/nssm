@@ -12,6 +12,7 @@ COPY scraper/ ./scraper/
 
 # Copy database files and migrations
 COPY db/ ./db/
+COPY config/ ./config/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 
