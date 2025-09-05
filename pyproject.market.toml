@@ -19,6 +19,7 @@ python-dotenv = "^1.1.1"
 pytz = "^2024.1"
 tenacity = "^8.2.3"
 yfinance = "^0.2.58"
+click = "^8.1.7"
 
 [build-system]
 requires = ["poetry-core"]

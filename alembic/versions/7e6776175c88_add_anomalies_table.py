@@ -6,8 +6,6 @@ Create Date: 2025-08-28 10:03:16.521085
 
 """
 
-import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -18,32 +16,28 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create anomalies table for sentiment pattern detection
-    op.create_table(
-        "anomalies",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("ticker", sa.String(length=20), nullable=False, index=True),
-        sa.Column(
-            "window_start", sa.DateTime(timezone=True), nullable=False, index=True
-        ),
-        sa.Column("zscore", sa.Float(), nullable=False),
-        sa.Column(
-            "direction", sa.String(length=20), nullable=False
-        ),  # 'positive' or 'negative'
-        sa.Column("post_count", sa.Integer(), nullable=False),
-        sa.Column("avg_sentiment", sa.Float(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=True,
-        ),
-        sa.PrimaryKeyConstraint("id"),
+    # Create anomalies table for sentiment pattern detection (if not exists)
+    op.execute(
+        """
+        CREATE TABLE IF NOT EXISTS anomalies (
+            id INTEGER NOT NULL AUTO_INCREMENT,
+            ticker VARCHAR(20) NOT NULL,
+            window_start DATETIME NOT NULL,
+            zscore FLOAT NOT NULL,
+            direction VARCHAR(20) NOT NULL,
+            post_count INTEGER NOT NULL,
+            avg_sentiment FLOAT NOT NULL,
+            created_at DATETIME DEFAULT (now()),
+            PRIMARY KEY (id)
+        )
+    """
     )
-    op.create_index(op.f("ix_anomalies_id"), "anomalies", ["id"], unique=False)
-    op.create_index(op.f("ix_anomalies_ticker"), "anomalies", ["ticker"], unique=False)
-    op.create_index(
-        op.f("ix_anomalies_window_start"), "anomalies", ["window_start"], unique=False
+
+    # Create indexes if they don't exist
+    op.execute("CREATE INDEX IF NOT EXISTS ix_anomalies_ticker ON anomalies (ticker)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_anomalies_window_start "
+        "ON anomalies (window_start)"
     )
 
 

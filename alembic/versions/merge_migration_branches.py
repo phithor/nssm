@@ -6,7 +6,6 @@ Create Date: 2025-09-05 13:30:00.000000
 
 """
 
-
 # revision identifiers, used by Alembic.
 revision = "merge_branches_001"
 down_revision = ("3a9ac292e731", "e4f8c9a7b2d1")

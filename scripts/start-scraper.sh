@@ -65,8 +65,8 @@ done
 # Run migrations
 run_migrations
 
-# Skip seeding - migrations handle table creation
-echo "Skipping database seeding (migrations handle table creation)"
+# Seed database (now safe since migrations are idempotent)
+seed_database
 
 echo "Starting scraper service..."
 exec python -m scraper run
