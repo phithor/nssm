@@ -1,4 +1,4 @@
-"""Add TimescaleDB extension and convert sentiment_agg to hypertable
+"""MariaDB optimization for sentiment_agg table
 
 Revision ID: 0002
 Revises: 0001
@@ -16,27 +16,29 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Add TimescaleDB extension
-    op.execute("CREATE EXTENSION IF NOT EXISTS timescaledb;")
-
-    # Convert sentiment_agg table to hypertable
+    # For MariaDB, we'll add indexes instead of TimescaleDB hypertables
+    # Add index on interval_start for time-based queries
     op.execute(
-        """
-        SELECT create_hypertable('sentiment_agg', 'interval_start',
-                                chunk_time_interval => INTERVAL '1 day',
-                                if_not_exists => TRUE);
-    """
+        "CREATE INDEX IF NOT EXISTS idx_sentiment_agg_interval_start ON sentiment_agg (interval_start);"
     )
 
-    # Add compression policy (optional - can be enabled later)
-    # op.execute("""
-    #     ALTER TABLE sentiment_agg SET (
-    #         timescaledb.compress,
-    #         timescaledb.compress_segmentby = 'ticker'
-    #     );
-    # """)
+    # Add index on ticker for ticker-based queries
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sentiment_agg_ticker ON sentiment_agg (ticker);"
+    )
+
+    # Add composite index for common queries
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sentiment_agg_ticker_interval ON sentiment_agg (ticker, interval_start);"
+    )
 
 
 def downgrade() -> None:
-    # Remove TimescaleDB extension (this will also remove hypertable)
-    op.execute("DROP EXTENSION IF EXISTS timescaledb CASCADE;")
+    # Remove the indexes
+    op.execute(
+        "DROP INDEX IF EXISTS idx_sentiment_agg_interval_start ON sentiment_agg;"
+    )
+    op.execute("DROP INDEX IF EXISTS idx_sentiment_agg_ticker ON sentiment_agg;")
+    op.execute(
+        "DROP INDEX IF EXISTS idx_sentiment_agg_ticker_interval ON sentiment_agg;"
+    )
