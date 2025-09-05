@@ -12,13 +12,13 @@ check_database() {
     echo "Checking database connection..."
     python -c "
 import sys
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from config import get_database_url
 
 try:
     engine = create_engine(get_database_url())
     with engine.connect() as conn:
-        conn.execute('SELECT 1')
+        conn.execute(text('SELECT 1'))
     print('Database connection successful')
     sys.exit(0)
 except Exception as e:
@@ -69,3 +69,5 @@ seed_database
 
 echo "Starting scraper service..."
 exec python -m scraper run
+
+
