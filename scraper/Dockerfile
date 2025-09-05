@@ -16,6 +16,10 @@ COPY config/ ./config/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 
+# Copy startup script explicitly
+COPY scripts/start-scraper.sh ./scripts/start-scraper.sh
+RUN chmod +x ./scripts/start-scraper.sh
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import sys; sys.exit(0)" || exit 1
