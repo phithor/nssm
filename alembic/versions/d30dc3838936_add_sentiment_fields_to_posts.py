@@ -32,19 +32,10 @@ def upgrade() -> None:
     )
     op.add_column("posts", sa.Column("scraper_metadata", sa.Text(), nullable=True))
 
-    # Add indexes for performance
-    op.create_index(
-        "ix_posts_sentiment_confidence", "posts", ["sentiment_confidence"], unique=False
-    )
-    op.create_index(
-        "ix_posts_sentiment_language", "posts", ["sentiment_language"], unique=False
-    )
-    op.create_index(
-        "ix_posts_sentiment_processed_at",
-        "posts",
-        ["sentiment_processed_at"],
-        unique=False,
-    )
+    # Add indexes for performance (idempotent with IF NOT EXISTS)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_posts_sentiment_confidence ON posts (sentiment_confidence)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_posts_sentiment_language ON posts (sentiment_language)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_posts_sentiment_processed_at ON posts (sentiment_processed_at)")
 
 
 def downgrade() -> None:
