@@ -11,6 +11,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import text
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent
@@ -77,12 +78,13 @@ def verify_database():
 
         # Test connection
         with engine.connect() as conn:
-            result = conn.execute("SELECT version();")
+            result = conn.execute(text("SELECT VERSION()"))
             version = result.fetchone()[0]
             logger.info(f"Database version: {version}")
 
         # Check if tables exist
-        inspector = engine.dialect.inspector(engine)
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
         tables = inspector.get_table_names()
         expected_tables = ["forums", "posts", "sentiment_agg", "alerts"]
 
@@ -92,15 +94,8 @@ def verify_database():
             else:
                 logger.warning(f"⚠️ Table '{table}' not found")
 
-        # Check TimescaleDB extension
-        with engine.connect() as conn:
-            result = conn.execute(
-                "SELECT * FROM pg_extension WHERE extname = 'timescaledb';"
-            )
-            if result.fetchone():
-                logger.info("✅ TimescaleDB extension is enabled")
-            else:
-                logger.warning("⚠️ TimescaleDB extension not found")
+        # Note: TimescaleDB check skipped for MySQL/MariaDB compatibility
+        logger.info("✅ Database verification supports MySQL/MariaDB")
 
         logger.info("✅ Database verification completed")
 
