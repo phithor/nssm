@@ -104,6 +104,18 @@ def verify_database():
         raise
 
 
+def seed_database():
+    """Seed database with initial forum data"""
+    try:
+        logger.info("Seeding database with initial forum data...")
+        from .seeds import seed_forums
+        seed_forums()
+        logger.info("✅ Database seeding completed successfully")
+    except Exception as e:
+        logger.error(f"❌ Error seeding database: {e}")
+        # Don't raise - seeding failure shouldn't block startup
+
+
 def init_database():
     """Initialize database - alias for main() for backward compatibility"""
     main()
@@ -119,6 +131,9 @@ def main():
 
         # Verify setup
         verify_database()
+        
+        # Seed database with initial data
+        seed_database()
 
         logger.info("🎉 Database initialization completed successfully!")
 
