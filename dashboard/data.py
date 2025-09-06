@@ -314,20 +314,37 @@ def get_available_tickers() -> List[str]:
     """
     with SessionLocal() as session:
         try:
-            # Get tickers from sentiment aggregation (most reliable source)
-            sentiment_tickers = session.query(SentimentAgg.ticker).distinct().all()
-            sentiment_tickers = [row.ticker for row in sentiment_tickers]
-
-            # Get tickers from market prices
-            price_tickers = session.query(MarketPrice.ticker).distinct().all()
-            price_tickers = [row.ticker for row in price_tickers]
-
+            # Try multiple sources to get tickers, with fallbacks
+            all_tickers = []
+            
+            # Try sentiment aggregation first
+            try:
+                sentiment_tickers = session.query(SentimentAgg.ticker).distinct().all()
+                sentiment_tickers = [row.ticker for row in sentiment_tickers if row.ticker]
+                all_tickers.extend(sentiment_tickers)
+            except Exception as e:
+                st.warning(f"Could not fetch sentiment tickers: {str(e)}")
+            
+            # Try market prices
+            try:
+                price_tickers = session.query(MarketPrice.ticker).distinct().all()  
+                price_tickers = [row.ticker for row in price_tickers if row.ticker]
+                all_tickers.extend(price_tickers)
+            except Exception as e:
+                st.warning(f"Could not fetch price tickers: {str(e)}")
+            
+            # If no data yet, return some default tickers for testing
+            if not all_tickers:
+                st.info("No tickers found in database yet. The scraper may still be collecting data.")
+                return []
+            
             # Combine and deduplicate
-            all_tickers = list(set(sentiment_tickers + price_tickers))
-            return sorted(all_tickers)
+            unique_tickers = list(set(all_tickers))
+            return sorted(unique_tickers)
 
         except Exception as e:
             st.error(f"Error fetching available tickers: {str(e)}")
+            st.info("⚠️ No tickers available in database.")
             return []
 
 

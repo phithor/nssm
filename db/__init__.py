@@ -23,8 +23,20 @@ DATABASE_URL = os.getenv(
     "mysql+pymysql://nssm:MLxWMB%2F%40%2FWiFA%2FLq@192.168.0.90:3306/nssm",
 )
 
-# Create SQLAlchemy engine
-engine = create_engine(DATABASE_URL, echo=False)
+# Create SQLAlchemy engine with connection pooling and timeout settings
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,  # Verify connections before use
+    pool_recycle=3600,   # Recycle connections every hour
+    connect_args={
+        "connect_timeout": 60,
+        "read_timeout": 60,
+        "write_timeout": 60,
+    }
+)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
