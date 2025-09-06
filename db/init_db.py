@@ -109,15 +109,17 @@ def verify_database():
         raise
 
 
+def init_database():
+    """Initialize database - alias for main() for backward compatibility"""
+    main()
+
+
 def main():
     """Main initialization function"""
     logger.info("🚀 Starting NSSM database initialization...")
 
     try:
-        # Create tables
-        create_tables()
-
-        # Run migrations
+        # Run migrations (migrations handle table creation idempotently)
         run_migrations()
 
         # Verify setup
