@@ -55,6 +55,7 @@ class Post(Base):
     raw_text = Column(Text, nullable=False)
     clean_text = Column(Text, nullable=False)
     url = Column(String(500), nullable=True)  # URL to the original post
+    thread_url = Column(String(500), nullable=True, index=True)  # URL to the thread containing this post
     sentiment_score = Column(Float, nullable=True, index=True)
     sentiment_confidence = Column(Float, nullable=True)  # Model confidence score
     sentiment_language = Column(

@@ -154,24 +154,35 @@ class ScraperPersistence:
                 self.logger.error("Hegnar Online forum not found in database")
                 return {"success": False, "error": "Forum not found"}
 
-            # Scrape forum with enhanced thread scraping (individual posts within threads)
+            # Create batch storage callback for incremental storage
+            def batch_store_posts(batch_posts):
+                if not batch_posts:
+                    return 0
+                
+                # Set forum ID for all posts in this batch
+                for post in batch_posts:
+                    post.forum_id = forum_id
+                
+                # Store this batch
+                return self.upsert_posts(batch_posts)
+
+            # Scrape forum with enhanced thread scraping and batched storage
             posts = self.hegnar_scraper.scrape_forum_with_threads(
                 max_pages=max_pages,
                 max_posts_per_thread=50,  # Max posts per thread
                 max_threads=20,           # Max threads to process
-                days_back=30              # Only posts from last 30 days
+                days_back=30,             # Only posts from last 30 days
+                batch_callback=batch_store_posts,  # Enable incremental storage
+                batch_size_posts=50,      # Store every 50 posts
+                batch_size_threads=5      # Store every 5 threads
             )
 
             if not posts:
                 self.logger.warning("No posts found from Hegnar forum")
                 return {"success": True, "posts_found": 0, "posts_stored": 0}
 
-            # Set forum ID for all posts
-            for post in posts:
-                post.forum_id = forum_id
-
-            # Store posts
-            stored_count = self.upsert_posts(posts)
+            # All posts should already be stored via batching, but count total
+            stored_count = len(posts)
 
             return {
                 "success": True,

@@ -50,23 +50,78 @@ class HegnarScraper(Scraper):
             self.logger.error(f"Error fetching {url}: {e}")
             return None
 
-    def parse(self, html: str) -> List[Post]:
+    def parse(self, html: str, thread_url: str = None, thread_id: str = None) -> List[Post]:
         """Parse forum HTML and extract posts"""
         soup = BeautifulSoup(html, "html.parser")
         posts = []
 
         try:
+            # Extract thread-level ticker information first
+            thread_ticker = self._extract_thread_ticker(soup, thread_url)
+            
             # First try to extract forum index data (thread metadata)
             posts.extend(self._extract_forum_index_data(soup))
 
-            # Then try to extract individual post content
-            posts.extend(self._extract_individual_posts(soup))
+            # Then try to extract individual post content with thread-level ticker
+            posts.extend(self._extract_individual_posts(soup, thread_ticker, thread_url, thread_id))
 
         except Exception as e:
             self.logger.error(f"Error parsing HTML: {e}")
 
         self.logger.info(f"Extracted {len(posts)} posts")
         return posts
+
+    def _extract_thread_ticker(self, soup, thread_url: str = None) -> str:
+        """Extract ticker information from thread page"""
+        try:
+            # Look for ticker in thread title or breadcrumbs
+            # Try multiple patterns for ticker extraction
+            
+            # Pattern 1: Look for ticker links in post header (individual posts)
+            # Format: href="https://www.finansavisen.no/forum/ticker/AKOBO%20MINERALS"
+            ticker_links = soup.find_all("a", href=re.compile(r"/forum/ticker/"))
+            for link in ticker_links:
+                href = link.get("href", "")
+                # Extract ticker from URL - handle URL encoding
+                ticker_match = re.search(r"/forum/ticker/([^/?]+)", href)
+                if ticker_match:
+                    ticker_raw = ticker_match.group(1)
+                    # URL decode and clean up
+                    import urllib.parse
+                    ticker_decoded = urllib.parse.unquote(ticker_raw)
+                    # Extract uppercase letters/symbols (AKOBO MINERALS -> AKOBO, BNOR -> BNOR)
+                    ticker_clean = re.search(r"([A-Z]{3,5})", ticker_decoded)
+                    if ticker_clean:
+                        ticker = ticker_clean.group(1)
+                        self.logger.debug(f"Found ticker from post header: {ticker}")
+                        return ticker
+            
+            # Pattern 2: Look for ticker in thread title
+            title_element = soup.find("h1") or soup.find("h2") or soup.find("title")
+            if title_element:
+                title_text = title_element.get_text(strip=True)
+                # Look for ticker patterns like "AKER", "EQUI", "TEL" etc
+                ticker_match = re.search(r"\b([A-Z]{3,5})\b", title_text)
+                if ticker_match:
+                    ticker = ticker_match.group(1)
+                    # Validate it looks like a ticker (not common words)
+                    if ticker not in ['THE', 'AND', 'FOR', 'ALL', 'NEW', 'OLD']:
+                        self.logger.debug(f"Found thread ticker from title: {ticker}")
+                        return ticker
+            
+            # Pattern 3: Look for ticker in URL or thread metadata
+            if thread_url:
+                url_ticker_match = re.search(r"/ticker/([A-Z]{3,5})", thread_url)
+                if url_ticker_match:
+                    ticker = url_ticker_match.group(1)
+                    self.logger.debug(f"Found thread ticker from URL: {ticker}")
+                    return ticker
+            
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"Error extracting thread ticker: {e}")
+            return None
 
     def _extract_forum_index_data(self, soup) -> List[Post]:
         """Extract thread metadata from forum index page"""
@@ -160,7 +215,7 @@ class HegnarScraper(Scraper):
             self.logger.warning(f"Error parsing thread link: {e}")
             return None
 
-    def _extract_individual_posts(self, soup) -> List[Post]:
+    def _extract_individual_posts(self, soup, thread_ticker=None, thread_url=None, thread_id=None) -> List[Post]:
         """Extract individual post content from thread pages"""
         posts = []
 
@@ -171,7 +226,7 @@ class HegnarScraper(Scraper):
 
             for container in post_containers:
                 try:
-                    post = self._parse_post_container(container)
+                    post = self._parse_post_container(container, thread_ticker, thread_url, thread_id)
                     if post:
                         posts.append(post)
                 except Exception as e:
@@ -185,7 +240,7 @@ class HegnarScraper(Scraper):
 
         return posts
 
-    def _parse_post_container(self, container) -> Optional[Post]:
+    def _parse_post_container(self, container, thread_ticker=None, thread_url=None, thread_id=None) -> Optional[Post]:
         """Parse a single post container to extract post information"""
         try:
             # Extract post ID
@@ -197,13 +252,29 @@ class HegnarScraper(Scraper):
             author_link = container.find("a", href=re.compile(r"/forum/user/\d+/view"))
             author = author_link.get_text(strip=True) if author_link else "Unknown"
 
-            # Extract ticker
-            ticker_link = container.find("a", href=re.compile(r"/forum/ticker/[A-Z]+"))
+            # Extract ticker - use thread ticker as fallback, try post-specific ticker first
             ticker = None
+            
+            # First try to find ticker in this specific post (as shown in your example)
+            ticker_link = container.find("a", href=re.compile(r"/forum/ticker/"))
             if ticker_link:
-                ticker_text = ticker_link.get_text(strip=True)
-                ticker_match = re.search(r"\b([A-Z]{3,5})\b", ticker_text)
-                ticker = ticker_match.group(1) if ticker_match else None
+                href = ticker_link.get("href", "")
+                ticker_match = re.search(r"/forum/ticker/([^/?]+)", href)
+                if ticker_match:
+                    ticker_raw = ticker_match.group(1)
+                    import urllib.parse
+                    ticker_decoded = urllib.parse.unquote(ticker_raw)
+                    # Extract ticker symbol from decoded string
+                    ticker_clean = re.search(r"([A-Z]{3,6})", ticker_decoded)
+                    if ticker_clean:
+                        ticker = ticker_clean.group(1)
+                        self.logger.debug(f"Found post-specific ticker: {ticker}")
+            
+            # Use thread ticker as fallback
+            if not ticker:
+                ticker = thread_ticker
+                if ticker:
+                    self.logger.debug(f"Using thread ticker: {ticker}")
 
             # Extract timestamp
             timestamp = None
@@ -250,12 +321,15 @@ class HegnarScraper(Scraper):
                 timestamp=timestamp or datetime.now(),
                 ticker=ticker,
                 url=f"https://www.finansavisen.no/forum/post/{post_id}",
+                thread_url=thread_url,
                 post_id=post_id,
                 metadata={
                     "source": "individual_post",
                     "content_length": len(content_text),
                     "has_ticker": ticker is not None,
                     "post_level": container.get("data-post-level", "0"),
+                    "thread_id": thread_id,
+                    "ticker_source": "post_specific" if ticker and ticker != thread_ticker else "thread_level"
                 },
             )
 
@@ -298,7 +372,7 @@ class HegnarScraper(Scraper):
 
         return posts
 
-    def scrape_forum_with_threads(self, max_pages: int = 5, max_posts_per_thread: int = 50, max_threads: int = 20, days_back: int = 30) -> List[Post]:
+    def scrape_forum_with_threads(self, max_pages: int = 5, max_posts_per_thread: int = 50, max_threads: int = 20, days_back: int = 30, batch_callback=None, batch_size_posts: int = 100, batch_size_threads: int = 5) -> List[Post]:
         """
         Scrape forum by getting thread lists and then scraping individual posts within threads.
         
@@ -307,6 +381,9 @@ class HegnarScraper(Scraper):
             max_posts_per_thread: Maximum posts to scrape from each thread
             max_threads: Maximum number of threads to process
             days_back: Only process posts from the last N days
+            batch_callback: Function to call when batch thresholds are reached (for incremental storage)
+            batch_size_posts: Store posts when this many accumulate
+            batch_size_threads: Store posts after processing this many threads
             
         Returns:
             List of individual posts from within threads
@@ -350,10 +427,15 @@ class HegnarScraper(Scraper):
         
         self.logger.info(f"Found {len(thread_ids)} total threads to process")
         
-        # Now scrape individual threads
+        # Now scrape individual threads with batched storage
+        batch_posts = []
+        threads_in_current_batch = 0
+        total_stored = 0
+        
         for thread_id in thread_ids[:max_threads]:
             try:
                 thread_count += 1
+                threads_in_current_batch += 1
                 self.logger.info(f"Scraping thread {thread_count}/{min(len(thread_ids), max_threads)}: {thread_id}")
                 
                 thread_posts = self.scrape_thread(thread_id, max_posts_per_thread)
@@ -364,12 +446,37 @@ class HegnarScraper(Scraper):
                     if post.timestamp and post.timestamp >= cutoff_date:
                         filtered_posts.append(post)
                 
+                batch_posts.extend(filtered_posts)
                 all_posts.extend(filtered_posts)
                 self.logger.info(f"Added {len(filtered_posts)} posts from thread {thread_id} (filtered from {len(thread_posts)} total)")
+                
+                # Check if we should trigger batch storage
+                should_store_batch = (
+                    batch_callback and 
+                    (len(batch_posts) >= batch_size_posts or 
+                     threads_in_current_batch >= batch_size_threads)
+                )
+                
+                if should_store_batch:
+                    self.logger.info(f"Triggering batch storage: {len(batch_posts)} posts from {threads_in_current_batch} threads")
+                    stored_count = batch_callback(batch_posts)
+                    total_stored += stored_count
+                    self.logger.info(f"Batch stored {stored_count} posts (total stored: {total_stored})")
+                    
+                    # Reset batch
+                    batch_posts = []
+                    threads_in_current_batch = 0
                 
             except Exception as e:
                 self.logger.error(f"Error scraping thread {thread_id}: {e}")
                 continue
+        
+        # Store any remaining posts in final batch
+        if batch_callback and batch_posts:
+            self.logger.info(f"Storing final batch: {len(batch_posts)} posts from {threads_in_current_batch} threads")
+            stored_count = batch_callback(batch_posts)
+            total_stored += stored_count
+            self.logger.info(f"Final batch stored {stored_count} posts (total stored: {total_stored})")
         
         self.logger.info(f"Enhanced scraping complete: {len(all_posts)} posts from {thread_count} threads")
         return all_posts
@@ -407,7 +514,7 @@ class HegnarScraper(Scraper):
 
             html = self.fetch(url)
             if html:
-                posts = self.parse(html)
+                posts = self.parse(html, thread_url=url, thread_id=thread_id)
                 # Limit posts if needed
                 if max_posts and len(posts) > max_posts:
                     posts = posts[:max_posts]
