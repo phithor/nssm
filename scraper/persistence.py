@@ -154,8 +154,13 @@ class ScraperPersistence:
                 self.logger.error("Hegnar Online forum not found in database")
                 return {"success": False, "error": "Forum not found"}
 
-            # Scrape forum index
-            posts = self.hegnar_scraper.scrape_forum_index(max_pages)
+            # Scrape forum with enhanced thread scraping (individual posts within threads)
+            posts = self.hegnar_scraper.scrape_forum_with_threads(
+                max_pages=max_pages,
+                max_posts_per_thread=50,  # Max posts per thread
+                max_threads=20,           # Max threads to process
+                days_back=30              # Only posts from last 30 days
+            )
 
             if not posts:
                 self.logger.warning("No posts found from Hegnar forum")

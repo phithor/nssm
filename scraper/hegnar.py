@@ -298,6 +298,107 @@ class HegnarScraper(Scraper):
 
         return posts
 
+    def scrape_forum_with_threads(self, max_pages: int = 5, max_posts_per_thread: int = 50, max_threads: int = 20, days_back: int = 30) -> List[Post]:
+        """
+        Scrape forum by getting thread lists and then scraping individual posts within threads.
+        
+        Args:
+            max_pages: Maximum forum index pages to check for threads
+            max_posts_per_thread: Maximum posts to scrape from each thread
+            max_threads: Maximum number of threads to process
+            days_back: Only process posts from the last N days
+            
+        Returns:
+            List of individual posts from within threads
+        """
+        from datetime import datetime, timedelta
+        
+        all_posts = []
+        thread_count = 0
+        cutoff_date = datetime.now() - timedelta(days=days_back)
+        
+        self.logger.info(f"Starting enhanced forum scraping: {max_pages} pages, {max_threads} threads, {days_back} days back")
+        
+        # First, get thread IDs from forum index pages
+        thread_ids = []
+        for page in range(1, max_pages + 1):
+            try:
+                if page == 1:
+                    url = f"{self.base_url}/forum/"
+                else:
+                    url = f"{self.base_url}/forum/?page={page}"
+                
+                self.logger.info(f"Getting thread IDs from forum page {page}: {url}")
+                
+                html = self.fetch(url)
+                if html:
+                    # Extract thread IDs from this page
+                    page_thread_ids = self._extract_thread_ids(html)
+                    thread_ids.extend(page_thread_ids)
+                    self.logger.info(f"Found {len(page_thread_ids)} threads on page {page}")
+                    
+                    if len(page_thread_ids) == 0:
+                        self.logger.info(f"No threads found on page {page}, stopping")
+                        break
+                else:
+                    self.logger.warning(f"Failed to fetch forum page {page}")
+                    break
+                    
+            except Exception as e:
+                self.logger.error(f"Error getting thread IDs from page {page}: {e}")
+                break
+        
+        self.logger.info(f"Found {len(thread_ids)} total threads to process")
+        
+        # Now scrape individual threads
+        for thread_id in thread_ids[:max_threads]:
+            try:
+                thread_count += 1
+                self.logger.info(f"Scraping thread {thread_count}/{min(len(thread_ids), max_threads)}: {thread_id}")
+                
+                thread_posts = self.scrape_thread(thread_id, max_posts_per_thread)
+                
+                # Filter posts by date
+                filtered_posts = []
+                for post in thread_posts:
+                    if post.timestamp and post.timestamp >= cutoff_date:
+                        filtered_posts.append(post)
+                
+                all_posts.extend(filtered_posts)
+                self.logger.info(f"Added {len(filtered_posts)} posts from thread {thread_id} (filtered from {len(thread_posts)} total)")
+                
+            except Exception as e:
+                self.logger.error(f"Error scraping thread {thread_id}: {e}")
+                continue
+        
+        self.logger.info(f"Enhanced scraping complete: {len(all_posts)} posts from {thread_count} threads")
+        return all_posts
+    
+    def _extract_thread_ids(self, html: str) -> List[str]:
+        """Extract thread IDs from forum index page HTML"""
+        from bs4 import BeautifulSoup
+        import re
+        
+        thread_ids = []
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+            
+            # Find all thread links
+            thread_links = soup.find_all("a", href=re.compile(r"/forum/thread/(\d+)"))
+            
+            for link in thread_links:
+                href = link.get("href", "")
+                thread_match = re.search(r"/forum/thread/(\d+)", href)
+                if thread_match:
+                    thread_id = thread_match.group(1)
+                    if thread_id not in thread_ids:  # Avoid duplicates
+                        thread_ids.append(thread_id)
+        
+        except Exception as e:
+            self.logger.error(f"Error extracting thread IDs: {e}")
+        
+        return thread_ids
+
     def scrape_thread(self, thread_id: str, max_posts: int = 50) -> List[Post]:
         """Scrape a specific thread for posts"""
         try:

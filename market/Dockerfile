@@ -7,8 +7,9 @@ COPY poetry.market.lock poetry.lock
 RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 
-# Copy market source code
+# Copy market source code and configuration
 COPY market/ ./market/
+COPY config/ ./config/
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
