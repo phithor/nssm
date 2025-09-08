@@ -1,0 +1,50 @@
+# Standalone NLP service Dockerfile (optimized for fast rebuilds)
+# This Dockerfile is independent of nssm-base to avoid unnecessary rebuilds
+FROM python:3.11-slim
+
+# Install essential system dependencies only
+# (Much lighter than base image - only what NLP needs)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    default-libmysqlclient-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN pip install poetry
+
+# Set working directory
+WORKDIR /app
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Copy Poetry files first for optimal layer caching
+# Layer 2: ML dependencies (changes infrequently, heavy install)
+COPY pyproject.nlp.toml pyproject.toml
+COPY poetry.nlp.lock poetry.lock
+
+# Install NLP dependencies (including heavy ML libraries)
+# This layer will be cached unless ML dependencies change
+RUN poetry config virtualenvs.create false \
+    && poetry install --only=main --no-root
+
+# Layer 3: Database models (changes when schema evolves)
+COPY db/ ./db/
+
+# Layer 4: NLP source code (changes most frequently, lightweight)
+COPY nlp/ ./nlp/
+
+# Copy environment files
+COPY .env* ./
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)" || exit 1
+
+# Default command for NLP service
+CMD ["python", "-m", "nlp"]
