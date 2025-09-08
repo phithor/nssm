@@ -27,13 +27,62 @@ from tenacity import (
 )
 
 from config import load_markets_config
-from db.models import MarketPrice
+from db import Base
+from db.models import MarketPrice, Post
 
 logger = logging.getLogger(__name__)
 
 # Rate limiting semaphore - OpenBB with yfinance provider
 RATE_LIMIT_SEMAPHORE = asyncio.Semaphore(30)  # Conservative limit for OpenBB yfinance
 call_timestamps = []  # Track call timestamps for rate limiting
+
+
+def get_active_tickers_from_db(db_url: str, days_back: int = 7) -> List[str]:
+    """
+    Get list of tickers that are actually being discussed in forum posts.
+    
+    Args:
+        db_url: Database connection URL
+        days_back: Number of days to look back for active tickers
+        
+    Returns:
+        List of ticker symbols from recent forum posts
+    """
+    try:
+        engine = create_engine(db_url)
+        SessionLocal = sessionmaker(bind=engine)
+        
+        with SessionLocal() as session:
+            # Get distinct tickers from posts in the last N days
+            cutoff_date = datetime.now() - timedelta(days=days_back)
+            
+            result = session.execute(
+                select(Post.ticker)
+                .where(
+                    Post.ticker.isnot(None),
+                    Post.timestamp >= cutoff_date
+                )
+                .distinct()
+            )
+            
+            tickers = [row[0] for row in result if row[0]]
+            logger.info(f"Found {len(tickers)} active tickers from forum posts: {tickers}")
+            return tickers
+            
+    except Exception as e:
+        logger.error(f"Failed to get active tickers from database: {e}")
+        # Fallback to config tickers
+        logger.info("Falling back to config tickers")
+        try:
+            config = load_markets_config()
+            config_tickers = []
+            for market_data in config.get("markets", {}).values():
+                if "ticker" in market_data:
+                    config_tickers.append(market_data["ticker"])
+            return config_tickers
+        except Exception as e2:
+            logger.error(f"Failed to load config tickers: {e2}")
+            return []
 
 
 def _rate_limit_wait() -> None:
@@ -394,18 +443,30 @@ class OpenBBYahooFinancePriceFetcher:
         return 0
 
     async def fetch_and_store_all_tickers(
-        self, days_back: int = 1, force_refresh: bool = False
+        self, days_back: int = 1, force_refresh: bool = False, use_active_tickers: bool = True
     ) -> Dict[str, int]:
-        """Fetch and store price data for all Scandinavian tickers."""
+        """Fetch and store price data for all tickers (active forum tickers by default)."""
         results = {}
 
-        # Get all tickers from market config
-        tickers = []
-        for market_data in self.markets_config.get("markets", {}).values():
-            if "ticker" in market_data:
-                tickers.append(market_data["ticker"])
+        # Get tickers from forum posts or fallback to config
+        if use_active_tickers:
+            logger.info("Getting active tickers from forum posts...")
+            tickers = get_active_tickers_from_db(self.db_url, days_back=7)
+            
+            if not tickers:
+                logger.warning("No active tickers found, falling back to config tickers")
+                tickers = []
+                for market_data in self.markets_config.get("markets", {}).values():
+                    if "ticker" in market_data:
+                        tickers.append(market_data["ticker"])
+        else:
+            # Use static config tickers
+            tickers = []
+            for market_data in self.markets_config.get("markets", {}).values():
+                if "ticker" in market_data:
+                    tickers.append(market_data["ticker"])
 
-        logger.info(f"Fetching price data for {len(tickers)} tickers")
+        logger.info(f"Fetching price data for {len(tickers)} tickers: {tickers}")
 
         # Fetch price data for all tickers concurrently
         tasks = [
@@ -590,15 +651,20 @@ def _fetch_mock_prices(
     Base.metadata.create_all(engine)
     SessionLocal = sessionmaker(bind=engine)
 
-    # Use market config or provided tickers
+    # Use active forum tickers or provided tickers
     if not tickers:
-        from config import load_markets_config
+        logger.info("No tickers specified, getting active tickers from forum posts...")
+        tickers = get_active_tickers_from_db(db_url, days_back=7)
+        
+        if not tickers:
+            logger.warning("No active tickers found in database, using config tickers as fallback")
+            from config import load_markets_config
 
-        config = load_markets_config()
-        tickers = []
-        for market_data in config.get("markets", {}).values():
-            if "ticker" in market_data:
-                tickers.append(market_data["ticker"])
+            config = load_markets_config()
+            tickers = []
+            for market_data in config.get("markets", {}).values():
+                if "ticker" in market_data:
+                    tickers.append(market_data["ticker"])
 
     results = {}
     for ticker in tickers:

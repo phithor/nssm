@@ -100,6 +100,17 @@ def main():
     run_parser.add_argument(
         "--verbose", action="store_true", help="Enable verbose output"
     )
+    run_parser.add_argument(
+        "--loop",
+        action="store_true",
+        help="Run continuously, checking for new posts periodically"
+    )
+    run_parser.add_argument(
+        "--loop-interval",
+        type=int,
+        default=300,
+        help="Interval between processing cycles in seconds (default: 300)"
+    )
 
     # Status command
     status_parser = subparsers.add_parser(
@@ -258,46 +269,148 @@ def run_sentiment_analysis(args):
     print("=== NSSM Sentiment Analysis ===")
     print()
 
-    # This is a placeholder implementation
-    # In a real implementation, this would:
-    # 1. Get a database session factory
-    # 2. Fetch unscored posts
-    # 3. Run sentiment analysis
-    # 4. Save results
-
     print("Configuration:")
-    print(f"  Limit: {args.limit} posts")
+    print(f"  Limit: {args.limit} posts per cycle")
     print(f"  Batch size: {args.batch_size}")
     print(f"  Language hint: {args.language_hint or 'auto'}")
     print(f"  Forum IDs: {args.forum_ids or 'all'}")
     print(f"  Dry run: {args.dry_run}")
     print(f"  Verbose: {args.verbose}")
+    print(f"  Continuous mode: {args.loop}")
+    if args.loop:
+        print(f"  Loop interval: {args.loop_interval} seconds")
     print()
 
     if args.dry_run:
         print("🔍 DRY RUN MODE - No actual analysis will be performed")
-        print()
+        return
 
-    print("📊 This command would:")
-    print("  1. Connect to the database")
-    print("  2. Fetch posts needing sentiment analysis")
-    print("  3. Load appropriate language models")
-    print("  4. Run batch sentiment analysis")
-    print("  5. Save results with confidence scores")
-    print()
-
-    print("💡 To run actual sentiment analysis:")
-    print("  - Ensure database is running and accessible")
-    print("  - Make sure you have database credentials configured")
-    print("  - Remove --dry-run flag")
-    print()
-
-    if args.verbose:
-        print("🔧 Technical details:")
-        print("  - Models will be loaded on-demand")
-        print("  - Posts are processed in batches for efficiency")
-        print("  - Results are saved atomically")
-        print("  - Errors are logged but don't stop processing")
+    try:
+        import os
+        import time
+        from datetime import datetime
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from .db_io import SentimentDBHandler
+        from .infer import batch_analyze_sentiment
+        
+        # Get database URL
+        db_url = os.getenv('DATABASE_URL')
+        if not db_url:
+            print("❌ DATABASE_URL environment variable not set")
+            return
+            
+        # Create database connection
+        engine = create_engine(db_url)
+        SessionLocal = sessionmaker(bind=engine)
+        
+        print("📊 Starting sentiment analysis...")
+        
+        # Initialize handler
+        handler = SentimentDBHandler(SessionLocal)
+        
+        def process_posts():
+            """Process one batch of posts."""
+            # Fetch unscored posts
+            posts = handler.fetch_unscored_posts(
+                limit=args.limit,
+                language_hint=args.language_hint,
+                forum_ids=args.forum_ids
+            )
+            
+            if not posts:
+                if args.verbose:
+                    print(f"[{datetime.now()}] ✅ No posts need sentiment analysis")
+                return 0, 0, 0
+                
+            print(f"[{datetime.now()}] 📝 Found {len(posts)} posts to analyze")
+            
+            # Process in batches
+            total_processed = 0
+            total_success = 0
+            total_errors = 0
+            
+            for i in range(0, len(posts), args.batch_size):
+                batch = posts[i:i + args.batch_size]
+                batch_num = (i // args.batch_size) + 1
+                total_batches = (len(posts) + args.batch_size - 1) // args.batch_size
+                
+                if args.verbose:
+                    print(f"⚙️  Processing batch {batch_num}/{total_batches} ({len(batch)} posts)...")
+                
+                try:
+                    # Run sentiment analysis on batch
+                    batch_result = batch_analyze_sentiment(
+                        posts=batch,
+                        batch_size=len(batch),
+                        language_hint=args.language_hint
+                    )
+                    
+                    # Save results
+                    success_count, error_count = handler.save_batch_results(batch_result)
+                    
+                    total_processed += len(batch)
+                    total_success += success_count
+                    total_errors += error_count
+                    
+                    if args.verbose:
+                        print(f"  ✅ Batch {batch_num}: {success_count} saved, {error_count} errors")
+                        
+                except Exception as e:
+                    print(f"  ❌ Batch {batch_num} failed: {e}")
+                    total_errors += len(batch)
+                    continue
+            
+            return total_processed, total_success, total_errors
+        
+        if args.loop:
+            print("🔄 Running in continuous mode. Press Ctrl+C to stop.")
+            cycle_count = 0
+            grand_total_processed = 0
+            grand_total_success = 0
+            grand_total_errors = 0
+            
+            try:
+                while True:
+                    cycle_count += 1
+                    print(f"\n🔄 Processing cycle {cycle_count}")
+                    
+                    processed, success, errors = process_posts()
+                    grand_total_processed += processed
+                    grand_total_success += success
+                    grand_total_errors += errors
+                    
+                    if processed > 0:
+                        print(f"✅ Cycle {cycle_count}: {processed} processed, {success} analyzed, {errors} errors")
+                    
+                    if args.verbose or processed == 0:
+                        print(f"💤 Waiting {args.loop_interval} seconds until next cycle...")
+                        
+                    time.sleep(args.loop_interval)
+                    
+            except KeyboardInterrupt:
+                print(f"\n🛑 Stopped after {cycle_count} cycles")
+                print(f"📊 Total across all cycles: {grand_total_processed} processed, {grand_total_success} analyzed, {grand_total_errors} errors")
+                
+        else:
+            # Single run mode
+            processed, success, errors = process_posts()
+            
+            print()
+            print("📈 Analysis Complete:")
+            print(f"  Total posts processed: {processed}")
+            print(f"  Successfully analyzed: {success}")
+            print(f"  Errors: {errors}")
+            
+            if success > 0 and processed > 0:
+                success_rate = (success / processed) * 100
+                print(f"  Success rate: {success_rate:.1f}%")
+            
+    except Exception as e:
+        print(f"❌ Sentiment analysis failed: {e}")
+        import traceback
+        if args.verbose:
+            traceback.print_exc()
 
 
 def show_sentiment_status(args):
@@ -305,36 +418,72 @@ def show_sentiment_status(args):
     print("=== NSSM Sentiment Analysis Status ===")
     print()
 
-    # This is a placeholder implementation
-    # In a real implementation, this would:
-    # 1. Connect to database
-    # 2. Get sentiment statistics
-    # 3. Show coverage and performance metrics
-
     print("Configuration:")
     print(f"  Days back: {args.days_back}")
     print(f"  Forum IDs: {args.forum_ids or 'all'}")
     print()
 
-    print("📊 This command would show:")
-    print("  - Total posts in the period")
-    print("  - Number of analyzed posts")
-    print("  - Analysis coverage percentage")
-    print("  - Average sentiment scores")
-    print("  - Posts still needing analysis")
-    print()
-
-    print("💡 To see actual statistics:")
-    print("  - Ensure database is running and accessible")
-    print("  - Make sure sentiment analysis has been run")
-    print()
-
-    print("📈 Sample output format:")
-    print("  Total posts (7 days): 1,247")
-    print("  Analyzed posts: 892")
-    print("  Coverage: 71.5%")
-    print("  Average sentiment: 0.34")
-    print("  Posts needing analysis: 355")
+    try:
+        import os
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from .db_io import SentimentDBHandler
+        
+        # Get database URL
+        db_url = os.getenv('DATABASE_URL')
+        if not db_url:
+            print("❌ DATABASE_URL environment variable not set")
+            return
+            
+        # Create database connection
+        engine = create_engine(db_url)
+        SessionLocal = sessionmaker(bind=engine)
+        
+        # Initialize handler
+        handler = SentimentDBHandler(SessionLocal)
+        
+        # Get statistics
+        stats = handler.get_sentiment_stats(
+            days_back=args.days_back,
+            forum_ids=args.forum_ids
+        )
+        
+        if not stats:
+            print("❌ Could not retrieve statistics")
+            return
+            
+        print("📊 Analysis Statistics:")
+        print(f"  Total posts ({args.days_back} days): {stats.get('total_posts', 0):,}")
+        print(f"  Analyzed posts: {stats.get('analyzed_posts', 0):,}")
+        print(f"  Posts needing analysis: {stats.get('unanalyzed_posts', 0):,}")
+        
+        coverage = stats.get('analysis_coverage', 0.0)
+        print(f"  Coverage: {coverage * 100:.1f}%")
+        
+        if stats.get('avg_sentiment') is not None:
+            avg_sentiment = stats['avg_sentiment']
+            print(f"  Average sentiment: {avg_sentiment:.3f}")
+            print(f"  Sentiment range: {stats.get('min_sentiment', 0):.3f} to {stats.get('max_sentiment', 0):.3f}")
+            
+            # Sentiment interpretation
+            if avg_sentiment > 0.1:
+                print("  📈 Overall sentiment: Positive")
+            elif avg_sentiment < -0.1:
+                print("  📉 Overall sentiment: Negative") 
+            else:
+                print("  📊 Overall sentiment: Neutral")
+        else:
+            print("  📊 No sentiment data available yet")
+            
+        # Get posts needing analysis
+        pending_count = handler.get_posts_needing_analysis()
+        if pending_count > 0:
+            print(f"  ⏳ {pending_count:,} posts ready for analysis (>1 hour old)")
+            
+    except Exception as e:
+        print(f"❌ Status check failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == "__main__":
