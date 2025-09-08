@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "add_missing_posts_columns"
+revision = "2b5c38e617c8"
 down_revision = "merge_branches_001"
 branch_labels = None
 depends_on = None
