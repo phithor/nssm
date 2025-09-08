@@ -18,9 +18,14 @@ depends_on = None
 
 def upgrade() -> None:
     # Make ticker column nullable to allow general forum posts without specific tickers
-    op.alter_column('posts', 'ticker', nullable=True)
+    # MySQL requires specifying the existing type when altering column
+    op.alter_column('posts', 'ticker', 
+                   existing_type=sa.String(20),
+                   nullable=True)
 
 
 def downgrade() -> None:
     # Revert ticker column to NOT NULL (note: may fail if NULL values exist)
-    op.alter_column('posts', 'ticker', nullable=False)
+    op.alter_column('posts', 'ticker',
+                   existing_type=sa.String(20), 
+                   nullable=False)
