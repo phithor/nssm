@@ -357,23 +357,24 @@ class SentimentAggregator:
                 cutoff_time = datetime.now() - timedelta(hours=hours_back)
 
                 # Query recent sentiment aggregates grouped by ticker and hour
+                # Use DATE_FORMAT for MySQL/MariaDB compatibility instead of PostgreSQL's date_trunc
+                hour_trunc = func.date_format(SentimentAgg.interval_start, "%Y-%m-%d %H:00:00").label("hour")
+                
                 result = session.execute(
                     select(
                         SentimentAgg.ticker,
-                        func.date_trunc("hour", SentimentAgg.interval_start).label(
-                            "hour"
-                        ),
+                        hour_trunc,
                         func.sum(SentimentAgg.post_cnt).label("total_posts"),
                         func.avg(SentimentAgg.avg_score).label("avg_sentiment"),
                     )
                     .where(SentimentAgg.interval_start >= cutoff_time)
                     .group_by(
                         SentimentAgg.ticker,
-                        func.date_trunc("hour", SentimentAgg.interval_start),
+                        hour_trunc,
                     )
                     .order_by(
                         SentimentAgg.ticker,
-                        func.date_trunc("hour", SentimentAgg.interval_start),
+                        hour_trunc,
                     )
                 )
 
