@@ -14,5 +14,5 @@ COPY analytics/ ./analytics/
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import sys; sys.exit(0)" || exit 1
 
-# Default command for analytics service
-CMD ["python", "-m", "analytics"]
+# Default command for analytics service - run pipeline with default settings
+CMD ["python", "-m", "analytics", "pipeline", "--hours-back", "24", "--window-minutes", "10"]
