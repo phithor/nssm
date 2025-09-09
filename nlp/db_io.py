@@ -73,11 +73,7 @@ class SentimentDBHandler:
                 if forum_ids:
                     query = query.where(Post.forum_id.in_(forum_ids))
 
-                # Execute query with hint for performance
-                query = query.with_hint(
-                    text("/*+ INDEX(posts idx_posts_sentiment_score) */"),
-                    dialect_name="postgresql",
-                )
+                # Query ready for execution (removed hint for compatibility)
 
                 result = session.execute(query)
                 posts = result.mappings().all()
