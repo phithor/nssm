@@ -203,14 +203,18 @@ def main():
         st.markdown("### 📋 Active Filters")
         with st.expander("Filter Summary", expanded=False):
             st.write(
-                f"**Date Range:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
+                f"**Date Range:** {start_date.strftime('%Y-%m-%d')} to "
+                f"{end_date.strftime('%Y-%m-%d')}"
             )
             st.write(
-                f"**Selected Tickers:** {len(selected_tickers)} ({', '.join(selected_tickers[:3])}{'...' if len(selected_tickers) > 3 else ''})"
+                f"**Selected Tickers:** {len(selected_tickers)} "
+                f"({', '.join(selected_tickers[:3])}"
+                f"{'...' if len(selected_tickers) > 3 else ''})"
             )
             st.write(f"**Anomaly Threshold:** {anomaly_threshold}σ")
             st.write(
-                f"**Sentiment Range:** {sentiment_filter[0]:.1f} to {sentiment_filter[1]:.1f}"
+                f"**Sentiment Range:** {sentiment_filter[0]:.1f} to "
+                f"{sentiment_filter[1]:.1f}"
             )
             st.write(f"**News Sources:** {', '.join(news_sources)}")
 
@@ -280,7 +284,8 @@ def main():
                 heatmap_pivot.values,
                 x=heatmap_pivot.columns,
                 y=heatmap_pivot.index,
-                color_continuous_scale="RdYlGn_r",  # Red for negative, Green for positive
+                # Red for negative, Green for positive
+                color_continuous_scale="RdYlGn_r",
                 labels=dict(x="Date", y="Ticker", color="Z-Score"),
                 title="Stock Sentiment Anomalies (Z-Score)",
                 aspect="auto",
@@ -303,7 +308,8 @@ def main():
 
             if abs(max_z) >= 2 or abs(min_z) >= 2:
                 st.info(
-                    "💡 Anomalies with |Z-Score| ≥ 2σ indicate unusual sentiment activity"
+                    "💡 Anomalies with |Z-Score| ≥ 2σ indicate unusual "
+                    "sentiment activity"
                 )
 
             st.plotly_chart(fig, use_container_width=True)
@@ -332,7 +338,9 @@ def main():
             st.info("No anomaly data available for the selected time period.")
     else:
         st.info(
-            "No anomaly data available for the selected time period. Anomalies are detected when sentiment activity significantly deviates from normal patterns."
+            "No anomaly data available for the selected time period. "
+            "Anomalies are detected when sentiment activity significantly "
+            "deviates from normal patterns."
         )
 
     # Sentiment vs Price Analysis with News Overlay
@@ -407,7 +415,8 @@ def main():
                     line=dict(color="#ff7f0e", width=2),
                     mode="lines+markers",
                     yaxis="y2",
-                    hovertemplate="Sentiment: %{y:.3f}<br>Posts: %{customdata}<br>%{x}<extra></extra>",
+                    hovertemplate="Sentiment: %{y:.3f}<br>Posts: %{customdata}<br>%{x}"
+                    "<extra></extra>",
                     customdata=sentiment_df["post_count"],
                 )
             )
@@ -436,7 +445,8 @@ def main():
                             line=dict(width=2, color="white"),
                         ),
                         name=f"News: {news_item['headline'][:30]}...",
-                        hovertemplate="<b>%{text}</b><br>Source: %{customdata}<br>Time: %{x|%Y-%m-%d %H:%M}<extra></extra>",
+                        hovertemplate="<b>%{text}</b><br>Source: %{customdata}<br>"
+                        "Time: %{x|%Y-%m-%d %H:%M}<extra></extra>",
                         showlegend=False,
                     )
                 )
@@ -446,14 +456,12 @@ def main():
             title=f"{analysis_ticker} - Sentiment vs Price Analysis",
             xaxis=dict(title="Time", type="date", tickformat="%Y-%m-%d %H:%M"),
             yaxis=dict(
-                title="Price",
-                titlefont=dict(color="#1f77b4"),
+                title=dict(text="Price", font=dict(color="#1f77b4")),
                 tickfont=dict(color="#1f77b4"),
                 showgrid=False,
             ),
             yaxis2=dict(
-                title="Sentiment Score",
-                titlefont=dict(color="#ff7f0e"),
+                title=dict(text="Sentiment Score", font=dict(color="#ff7f0e")),
                 tickfont=dict(color="#ff7f0e"),
                 overlaying="y",
                 side="right",
@@ -485,14 +493,19 @@ def main():
                     st.metric("Sentiment-Price Correlation", f"{correlation:.3f}")
 
                     if abs(correlation) > 0.3:
+                        direction = (
+                            "Strong positive" if correlation > 0 else "Strong negative"
+                        )
                         st.info(
-                            f"📈 {'Strong positive' if correlation > 0 else 'Strong negative'} correlation between sentiment and price ({correlation:.3f})"
+                            f"📈 {direction} correlation between sentiment and price "
+                            f"({correlation:.3f})"
                         )
                     elif abs(correlation) > 0.1:
                         st.info(
-                            f"📊 Moderate correlation between sentiment and price ({correlation:.3f})"
+                            f"📊 Moderate correlation between sentiment and price "
+                            f"({correlation:.3f})"
                         )
-            except Exception as e:
+            except Exception:
                 st.warning(
                     "Could not calculate correlation due to data alignment issues."
                 )

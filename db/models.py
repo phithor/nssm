@@ -55,7 +55,9 @@ class Post(Base):
     raw_text = Column(Text, nullable=False)
     clean_text = Column(Text, nullable=False)
     url = Column(String(500), nullable=True)  # URL to the original post
-    thread_url = Column(String(500), nullable=True, index=True)  # URL to the thread containing this post
+    thread_url = Column(
+        String(500), nullable=True, index=True
+    )  # URL to the thread containing this post
     sentiment_score = Column(Float, nullable=True, index=True)
     sentiment_confidence = Column(Float, nullable=True)  # Model confidence score
     sentiment_language = Column(
@@ -143,8 +145,12 @@ class News(Base):
         DateTime(timezone=True), server_default=func.now(), index=True
     )  # For query optimization
 
-    # Composite index for upsert operations to prevent duplicates
-    __table_args__ = ()
+    # Composite unique constraint to prevent duplicate news entries
+    __table_args__ = (
+        UniqueConstraint(
+            "ticker", "source", "headline", "published_at", name="unique_news_entry"
+        ),
+    )
 
 
 class MarketPrice(Base):

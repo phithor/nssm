@@ -8,7 +8,7 @@ This module fetches company announcements and filings from Nordic exchanges:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pytz
 import requests
@@ -263,17 +263,91 @@ class NordicAnnouncementsFetcher:
 
         return {"stored": total_stored, "errors": len(errors)}
 
+    async def get_sentiment_tracked_tickers(self) -> List[str]:
+        """Get unique tickers from sentiment aggregation table."""
+        try:
+            from sqlalchemy import distinct, select
 
-async def fetch_nordic_announcements(db_url: str, days_back: int = 7) -> Dict[str, int]:
+            from db.models import SentimentAgg
+
+            with self.SessionLocal() as session:
+                # Get unique tickers from sentiment aggregation
+                tickers = (
+                    session.execute(
+                        select(distinct(SentimentAgg.ticker))
+                        .where(SentimentAgg.ticker.isnot(None))
+                        .order_by(SentimentAgg.ticker)
+                    )
+                    .scalars()
+                    .all()
+                )
+
+                return list(tickers)
+
+        except Exception as e:
+            logger.error(f"Error getting sentiment-tracked tickers: {e}")
+            return []
+
+    async def fetch_and_store_announcements_for_tickers(
+        self, tickers: List[str], days_back: int = 7
+    ) -> Dict[str, int]:
+        """Fetch and store announcements for specific tickers."""
+        total_stored = 0
+        errors = []
+
+        for ticker in tickers:
+            try:
+                logger.info(f"Fetching announcements for ticker: {ticker}")
+
+                # Fetch Oslo Børs announcements for this ticker
+                announcements = self.fetch_oslo_bors_newsweb(ticker, days_back)
+
+                # Store announcements
+                stored_count = 0
+                for announcement in announcements:
+                    if self._upsert_news_item(announcement):
+                        stored_count += 1
+
+                total_stored += stored_count
+                logger.info(f"Stored {stored_count} announcements for {ticker}")
+
+            except Exception as e:
+                logger.error(f"Error fetching announcements for {ticker}: {e}")
+                errors.append(f"{ticker}: {e}")
+
+        if errors:
+            logger.warning(f"Encountered {len(errors)} errors during processing")
+
+        return {"stored": total_stored, "errors": len(errors)}
+
+
+async def fetch_nordic_announcements(
+    db_url: str, tickers: Optional[List[str]] = None, days_back: int = 7
+) -> Dict[str, int]:
     """
     Main function to fetch Nordic exchange announcements.
 
     Args:
         db_url: Database connection URL
+        tickers: Optional list of tickers to fetch news for (if None, fetches for all)
         days_back: Number of days back to fetch announcements
 
     Returns:
         Dictionary mapping sources to number of items stored
     """
     fetcher = NordicAnnouncementsFetcher(db_url)
-    return await fetcher.fetch_and_store_announcements(days_back)
+
+    # If no tickers specified, get tickers from sentiment aggregation table
+    if tickers is None:
+        tickers = await fetcher.get_sentiment_tracked_tickers()
+        logger.info(
+            f"No tickers specified, using {len(tickers)} tickers from "
+            f"sentiment aggregation"
+        )
+
+    if not tickers:
+        logger.warning("No tickers available for news fetching")
+        return {"oslobors": 0}
+
+    logger.info(f"Fetching Oslo Børs announcements for tickers: {tickers}")
+    return await fetcher.fetch_and_store_announcements_for_tickers(tickers, days_back)

@@ -10,14 +10,15 @@ import logging
 import signal
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional
 
 import schedule
 
 from db import get_database_url
 
-from .data import OpenBBYahooFinancePriceFetcher, fetch_market_prices
+from .announcements import fetch_nordic_announcements
+from .data import fetch_market_prices
 
 
 class MarketDataScheduler:
@@ -35,6 +36,7 @@ class MarketDataScheduler:
 
         # Track last successful run
         self.last_price_fetch = None
+        self.last_news_fetch = None
 
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals gracefully."""
@@ -66,7 +68,8 @@ class MarketDataScheduler:
             if total_stored > 0:
                 self.logger.info(
                     f"✅ Price fetch completed: {total_stored} data points stored "
-                    f"for {successful_tickers}/{len(results)} tickers in {duration.total_seconds():.1f}s"
+                    f"for {successful_tickers}/{len(results)} tickers in "
+                    f"{duration.total_seconds():.1f}s"
                 )
                 self.last_price_fetch = datetime.now()
             else:
@@ -103,6 +106,110 @@ class MarketDataScheduler:
         except Exception as e:
             self.logger.error(f"Error in sync wrapper: {e}")
 
+    async def run_news_fetch(self, days_back: int = 1):
+        """Fetch news data for sentiment-tracked tickers only."""
+        try:
+            self.logger.info(
+                "📰 Starting scheduled news fetch for sentiment-tracked tickers..."
+            )
+
+            start_time = datetime.now()
+            results = {}
+
+            # Get tickers from sentiment aggregation
+            tracked_tickers = await self.get_sentiment_tracked_tickers()
+            if not tracked_tickers:
+                self.logger.warning(
+                    "No sentiment-tracked tickers found, skipping news fetch"
+                )
+                return
+
+            self.logger.info(
+                f"Found {len(tracked_tickers)} sentiment-tracked tickers: "
+                f"{tracked_tickers}"
+            )
+
+            # Fetch from Oslo Børs NewsWeb for tracked tickers only
+            try:
+                self.logger.info(
+                    "Fetching announcements from Oslo Børs NewsWeb for "
+                    "tracked tickers..."
+                )
+                nordic_results = await fetch_nordic_announcements(
+                    db_url=self.db_url, tickers=tracked_tickers, days_back=days_back
+                )
+                results["oslobors"] = nordic_results
+                self.logger.info(f"Oslo Børs NewsWeb fetch completed: {nordic_results}")
+            except Exception as e:
+                self.logger.error(f"Oslo Børs NewsWeb fetch failed: {e}")
+                results["oslobors"] = {}
+
+            # Calculate totals
+            total_items = 0
+            for source, source_results in results.items():
+                if isinstance(source_results, dict):
+                    total_items += sum(source_results.values())
+
+            duration = datetime.now() - start_time
+
+            if total_items > 0:
+                self.logger.info(
+                    f"✅ News fetch completed: {total_items} items stored in "
+                    f"{duration.total_seconds():.1f}s"
+                )
+                self.last_news_fetch = datetime.now()
+            else:
+                self.logger.warning(
+                    "⚠️  News fetch completed but no new data was stored"
+                )
+
+        except Exception as e:
+            self.logger.error(f"💥 Scheduled news fetch failed: {e}")
+            import traceback
+
+            self.logger.debug(f"Full traceback: {traceback.format_exc()}")
+
+    def run_news_fetch_sync(self, days_back: int = 1):
+        """Synchronous wrapper for the async news fetch function."""
+        try:
+            # Create a new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            loop.run_until_complete(self.run_news_fetch(days_back))
+            loop.close()
+        except Exception as e:
+            self.logger.error(f"Error in news sync wrapper: {e}")
+
+    async def get_sentiment_tracked_tickers(self) -> List[str]:
+        """Get unique tickers from sentiment aggregation table."""
+        try:
+            from sqlalchemy import create_engine, distinct, select
+            from sqlalchemy.orm import sessionmaker
+
+            from db.models import SentimentAgg
+
+            engine = create_engine(self.db_url)
+            SessionLocal = sessionmaker(bind=engine)
+
+            with SessionLocal() as session:
+                # Get unique tickers from sentiment aggregation
+                tickers = (
+                    session.execute(
+                        select(distinct(SentimentAgg.ticker))
+                        .where(SentimentAgg.ticker.isnot(None))
+                        .order_by(SentimentAgg.ticker)
+                    )
+                    .scalars()
+                    .all()
+                )
+
+                return list(tickers)
+
+        except Exception as e:
+            self.logger.error(f"Error getting sentiment-tracked tickers: {e}")
+            return []
+
     async def run_daily_maintenance(self):
         """Run daily maintenance tasks for market data."""
         try:
@@ -136,6 +243,9 @@ class MarketDataScheduler:
             "last_price_fetch": (
                 self.last_price_fetch.isoformat() if self.last_price_fetch else None
             ),
+            "last_news_fetch": (
+                self.last_news_fetch.isoformat() if self.last_news_fetch else None
+            ),
             "next_scheduled_run": None,  # Could be calculated from schedule
             "db_url": (
                 self.db_url[:20] + "..." if self.db_url else None
@@ -145,6 +255,7 @@ class MarketDataScheduler:
     def start(
         self,
         price_interval_hours: int = 1,
+        news_interval_minutes: int = 30,
         maintenance_hour: int = 2,
         days_back: int = 1,
         force_refresh: bool = False,
@@ -157,6 +268,7 @@ class MarketDataScheduler:
             else "No database configured"
         )
         self.logger.info(f"   Price fetch interval: {price_interval_hours} hour(s)")
+        self.logger.info(f"   News fetch interval: {news_interval_minutes} minute(s)")
         self.logger.info(f"   Days back: {days_back}")
         self.logger.info(f"   Force refresh: {force_refresh}")
 
@@ -165,6 +277,12 @@ class MarketDataScheduler:
             self.run_hourly_price_fetch_sync,
             days_back=days_back,
             force_refresh=force_refresh,
+        )
+
+        # Schedule news fetching
+        schedule.every(news_interval_minutes).minutes.do(
+            self.run_news_fetch_sync,
+            days_back=days_back,
         )
 
         # Schedule daily maintenance
@@ -251,6 +369,12 @@ def main():
         help="Hours between price fetches (default: 1)",
     )
     parser.add_argument(
+        "--news-interval-minutes",
+        type=int,
+        default=30,
+        help="Minutes between news fetches (default: 30)",
+    )
+    parser.add_argument(
         "--maintenance-hour",
         type=int,
         default=2,
@@ -323,6 +447,7 @@ def main():
             # Start scheduler service
             scheduler.start(
                 price_interval_hours=args.interval_hours,
+                news_interval_minutes=args.news_interval_minutes,
                 maintenance_hour=args.maintenance_hour,
                 days_back=args.days_back,
                 force_refresh=args.force_refresh,
