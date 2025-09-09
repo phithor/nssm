@@ -25,7 +25,7 @@ MODEL_CONFIGS = {
         "max_length": 512,
     },
     "sv": {
-        "model_name": "KBLab/swe-bert-base",
+        "model_name": "KBLab/bert-base-swedish-cased",
         "description": "Swedish BERT base model for sentiment analysis",
         "max_length": 512,
     },
@@ -104,14 +104,14 @@ class ModelCache:
             tokenizer = AutoTokenizer.from_pretrained(
                 model_name,
                 cache_dir=str(self.cache_dir),
-                local_files_only=True,  # Use local models only
+                local_files_only=False,  # Allow downloads to create proper cache
                 use_fast=True,
             )
 
             model = AutoModelForSequenceClassification.from_pretrained(
                 model_name,
                 cache_dir=str(self.cache_dir),
-                local_files_only=True,  # Use local models only
+                local_files_only=False,  # Allow downloads to create proper cache
                 torch_dtype=(
                     torch.float16 if self._device.type == "cuda" else torch.float32
                 ),
