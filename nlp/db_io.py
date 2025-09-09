@@ -124,10 +124,23 @@ class SentimentDBHandler:
                     for result in results:
                         try:
                             if result.error:
-                                # Log error but don't update the post
+                                # Log error and mark post as processed with null score to avoid reprocessing
                                 print(
                                     f"Skipping post {result.post_id} due to error: {result.error}"
                                 )
+                                # Mark as processed with neutral score to prevent reprocessing
+                                error_update_stmt = (
+                                    update(Post)
+                                    .where(Post.id == result.post_id)
+                                    .values(
+                                        sentiment_score=0.0,  # Neutral score for empty content
+                                        sentiment_confidence=0.0,
+                                        sentiment_language="unknown",
+                                        sentiment_processed_at=func.now(),
+                                        sentiment_processing_time=0.0,
+                                    )
+                                )
+                                session.execute(error_update_stmt)
                                 error_count += 1
                                 continue
 

@@ -98,7 +98,7 @@ class SentimentAggregator:
                     )
                     .where(
                         and_(
-                            Post.timestamp >= cutoff_time,
+                            Post.sentiment_processed_at >= cutoff_time,  # Use processing time instead of post time
                             Post.sentiment_score.isnot(None),
                             Post.sentiment_confidence >= min_sentiment_confidence,
                             Post.ticker.isnot(None),  # Only posts with tickers
