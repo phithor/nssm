@@ -20,8 +20,8 @@ from transformers import (
 # Model configurations for Norwegian, Swedish, and English
 MODEL_CONFIGS = {
     "no": {
-        "model_name": "NbAiLab/nb-bert-base",
-        "description": "Norwegian BERT base model for sentiment analysis",
+        "model_name": "ltg/norbert-sentiment",
+        "description": "Norwegian BERT model fine-tuned for sentiment analysis",
         "max_length": 512,
     },
     "sv": {
