@@ -292,7 +292,7 @@ def run_sentiment_analysis(args):
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         from .db_io import SentimentDBHandler
-        from .infer import batch_analyze_sentiment
+        from .infer import analyze_sentiment
         
         # Get database URL
         db_url = os.getenv('DATABASE_URL')
@@ -340,10 +340,10 @@ def run_sentiment_analysis(args):
                 
                 try:
                     # Run sentiment analysis on batch
-                    batch_result = batch_analyze_sentiment(
+                    batch_result = analyze_sentiment(
                         posts=batch,
-                        batch_size=len(batch),
-                        language_hint=args.language_hint
+                        locale_hint=args.language_hint,
+                        batch_size=len(batch)
                     )
                     
                     # Save results
