@@ -215,12 +215,19 @@ class SentimentAnalyzer:
             # Apply softmax to get probabilities
             probabilities = torch.softmax(logits, dim=-1)
 
-            # Extract positive sentiment scores (assuming index 1 is positive)
-            positive_scores = probabilities[:, 1].cpu().numpy()
+            # Cardiff multilingual model has 3 classes: [NEGATIVE, NEUTRAL, POSITIVE]
+            # Calculate sentiment score as: (positive_prob - negative_prob + 1) / 2
+            # This maps [-1, 1] to [0, 1] where 0=negative, 0.5=neutral, 1=positive
+            negative_probs = probabilities[:, 0]  # NEGATIVE
+            neutral_probs = probabilities[:, 1]   # NEUTRAL  
+            positive_probs = probabilities[:, 2]  # POSITIVE
+            
+            # Sentiment score: weighted by positive vs negative (ignoring neutral)
+            sentiment_scores = (positive_probs - negative_probs + 1) / 2
+            sentiment_scores = sentiment_scores.cpu().numpy()
 
-            # Calculate confidence as the difference between top two probabilities
-            sorted_probs, _ = torch.sort(probabilities, descending=True, dim=-1)
-            confidences = (sorted_probs[:, 0] - sorted_probs[:, 1]).cpu().numpy()
+            # Calculate confidence as max probability (how sure is the model?)
+            confidences = torch.max(probabilities, dim=-1)[0].cpu().numpy()
 
             batch_processing_time = time.time() - batch_start_time
 
@@ -233,7 +240,7 @@ class SentimentAnalyzer:
                     results.append(
                         SentimentResult(
                             post_id=post["id"],
-                            score=float(positive_scores[i]),
+                            score=float(sentiment_scores[i]),
                             confidence=float(confidences[i]),
                             language=lang,
                             processing_time=batch_processing_time
