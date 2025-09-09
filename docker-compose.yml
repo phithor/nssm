@@ -19,9 +19,10 @@ services:
       - DATABASE_URL=${DATABASE_URL}
     networks:
       - nssm-external
+      - default  # Add default bridge network for internet access
     volumes:
       - nlp_logs:/app/logs
-      - /mnt/user/appdata/nssm/nssm-data/models:/app/models:ro
+      - /mnt/user/appdata/nssm/nssm-data/models:/app/models
     restart: unless-stopped
 
   # Dashboard service (external access)
