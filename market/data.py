@@ -617,8 +617,6 @@ def fetch_market_prices(
             )
         except RuntimeError:
             # No running event loop, we can use asyncio.run
-            import asyncio
-
             return asyncio.run(
                 fetch_openbb_prices(db_url, tickers, days_back, force_refresh)
             )
