@@ -18,20 +18,21 @@ from transformers import (
 )
 
 # Model configurations for Norwegian, Swedish, and English
+# Using unified multilingual model for consistency and better performance
 MODEL_CONFIGS = {
     "no": {
-        "model_name": "ltg/norbert-sentiment",
-        "description": "Norwegian BERT model fine-tuned for sentiment analysis",
+        "model_name": "cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual",
+        "description": "Multilingual XLM-RoBERTa model for sentiment analysis (Norwegian)",
         "max_length": 512,
     },
     "sv": {
-        "model_name": "KBLab/bert-base-swedish-cased",
-        "description": "Swedish BERT base model for sentiment analysis",
+        "model_name": "cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual",
+        "description": "Multilingual XLM-RoBERTa model for sentiment analysis (Swedish)",
         "max_length": 512,
     },
     "en": {
-        "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest",
-        "description": "English RoBERTa model for sentiment analysis",
+        "model_name": "cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual",
+        "description": "Multilingual XLM-RoBERTa model for sentiment analysis (English)",
         "max_length": 512,
     },
 }
