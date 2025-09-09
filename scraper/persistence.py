@@ -84,10 +84,11 @@ class ScraperPersistence:
 
                     if existing_post:
                         # Update existing post
-                        existing_post.content = post.content
+                        existing_post.raw_text = post.raw_text
+                        existing_post.clean_text = post.clean_text
                         existing_post.timestamp = post.timestamp
                         existing_post.ticker = post.ticker
-                        existing_post.metadata = post.metadata
+                        existing_post.scraper_metadata = post.scraper_metadata
                         self.logger.debug(f"Updated existing post: {post.post_id}")
                     else:
                         # Insert new post

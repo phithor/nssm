@@ -56,14 +56,18 @@ class HegnarScraper(Scraper):
         posts = []
 
         try:
-            # Extract thread-level ticker information first
-            thread_ticker = self._extract_thread_ticker(soup, thread_url)
+            # Determine if this is a thread page or forum index page
+            is_thread_page = thread_url and "/thread/" in thread_url
             
-            # First try to extract forum index data (thread metadata)
-            posts.extend(self._extract_forum_index_data(soup))
-
-            # Then try to extract individual post content with thread-level ticker
-            posts.extend(self._extract_individual_posts(soup, thread_ticker, thread_url, thread_id))
+            if is_thread_page:
+                # For thread pages: extract thread-level ticker and individual posts
+                self.logger.debug(f"Parsing thread page: {thread_url}")
+                thread_ticker = self._extract_thread_ticker(soup, thread_url)
+                posts.extend(self._extract_individual_posts(soup, thread_ticker, thread_url, thread_id))
+            else:
+                # For forum index pages: extract thread metadata only
+                self.logger.debug("Parsing forum index page")
+                posts.extend(self._extract_forum_index_data(soup))
 
         except Exception as e:
             self.logger.error(f"Error parsing HTML: {e}")
@@ -89,29 +93,34 @@ class HegnarScraper(Scraper):
                     # URL decode and clean up
                     import urllib.parse
                     ticker_decoded = urllib.parse.unquote(ticker_raw)
-                    # Extract uppercase letters/symbols (AKOBO MINERALS -> AKOBO, BNOR -> BNOR)
-                    ticker_clean = re.search(r"([A-Z]{3,5})", ticker_decoded)
+                    # Extract uppercase letters/symbols (AKOBO MINERALS -> AKOBO, SCANA -> SCANA)
+                    ticker_clean = re.search(r"([A-Z]{3,8})", ticker_decoded)
                     if ticker_clean:
                         ticker = ticker_clean.group(1)
-                        self.logger.debug(f"Found ticker from post header: {ticker}")
+                        self.logger.debug(f"Found ticker from post header: {ticker} (decoded from {ticker_decoded})")
                         return ticker
+                    else:
+                        # If no regex match, try to use the whole ticker if it's all uppercase
+                        if ticker_decoded.isupper() and 3 <= len(ticker_decoded) <= 8:
+                            self.logger.debug(f"Found ticker (direct match): {ticker_decoded}")
+                            return ticker_decoded
             
             # Pattern 2: Look for ticker in thread title
             title_element = soup.find("h1") or soup.find("h2") or soup.find("title")
             if title_element:
                 title_text = title_element.get_text(strip=True)
-                # Look for ticker patterns like "AKER", "EQUI", "TEL" etc
-                ticker_match = re.search(r"\b([A-Z]{3,5})\b", title_text)
+                # Look for ticker patterns like "AKER", "EQUI", "SCANA", "LONGNAME" etc
+                ticker_match = re.search(r"\b([A-Z]{3,8})\b", title_text)
                 if ticker_match:
                     ticker = ticker_match.group(1)
                     # Validate it looks like a ticker (not common words)
-                    if ticker not in ['THE', 'AND', 'FOR', 'ALL', 'NEW', 'OLD']:
+                    if ticker not in ['THE', 'AND', 'FOR', 'ALL', 'NEW', 'OLD', 'NOT', 'BUT', 'YOU', 'CAN', 'HAS', 'GET', 'PUT']:
                         self.logger.debug(f"Found thread ticker from title: {ticker}")
                         return ticker
             
             # Pattern 3: Look for ticker in URL or thread metadata
             if thread_url:
-                url_ticker_match = re.search(r"/ticker/([A-Z]{3,5})", thread_url)
+                url_ticker_match = re.search(r"/ticker/([A-Z]{3,8})", thread_url)
                 if url_ticker_match:
                     ticker = url_ticker_match.group(1)
                     self.logger.debug(f"Found thread ticker from URL: {ticker}")
@@ -265,10 +274,14 @@ class HegnarScraper(Scraper):
                     import urllib.parse
                     ticker_decoded = urllib.parse.unquote(ticker_raw)
                     # Extract ticker symbol from decoded string
-                    ticker_clean = re.search(r"([A-Z]{3,6})", ticker_decoded)
+                    ticker_clean = re.search(r"([A-Z]{3,8})", ticker_decoded)
                     if ticker_clean:
                         ticker = ticker_clean.group(1)
-                        self.logger.debug(f"Found post-specific ticker: {ticker}")
+                        self.logger.debug(f"Found post-specific ticker: {ticker} (decoded from {ticker_decoded})")
+                    elif ticker_decoded.isupper() and 3 <= len(ticker_decoded) <= 8:
+                        # Direct match if whole string is uppercase ticker
+                        ticker = ticker_decoded
+                        self.logger.debug(f"Found post-specific ticker (direct match): {ticker}")
             
             # Use thread ticker as fallback
             if not ticker:
@@ -292,24 +305,45 @@ class HegnarScraper(Scraper):
                     except ValueError:
                         timestamp = datetime.now()
 
-            # Extract post content
+            # Extract post content - be more specific to avoid duplicates
             content_div = container.find("div", class_="post content text-left")
             if not content_div:
-                return None
+                # Try alternative content selectors
+                content_div = container.find("div", class_=re.compile(r"content"))
+                if not content_div:
+                    self.logger.debug(f"No content div found for post {post_id}")
+                    return None
 
-            # Get the text content, excluding any quoted content
+            # Get the text content, excluding any quoted content and nested post structures
             content_text = ""
+            processed_elements = set()
+            
             for element in content_div.children:
+                # Skip if we've already processed this element (prevents duplicates)
+                element_id = id(element)
+                if element_id in processed_elements:
+                    continue
+                processed_elements.add(element_id)
+                
                 if element.name == "blockquote":
                     # Skip quoted content
                     continue
+                elif element.name == "div" and element.get("id", "").startswith("post_"):
+                    # Skip nested post containers to prevent duplicate processing
+                    self.logger.debug(f"Skipping nested post container: {element.get('id')}")
+                    continue
                 elif hasattr(element, "get_text"):
-                    content_text += element.get_text()
+                    element_text = element.get_text()
+                    # Only add non-empty, non-duplicate text
+                    if element_text.strip() and element_text.strip() not in content_text:
+                        content_text += " " + element_text
                 elif hasattr(element, "string") and element.string:
-                    content_text += element.string
+                    if element.string.strip() and element.string.strip() not in content_text:
+                        content_text += " " + element.string
 
             content_text = content_text.strip()
             if not content_text or len(content_text) < 10:
+                self.logger.debug(f"Content too short for post {post_id}: {len(content_text)} chars")
                 return None
 
             # Create post object
